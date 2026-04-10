@@ -90,6 +90,11 @@ export default function DashboardPage() {
   }
 
   const handleConfirmBook = async () => {
+    const duplicate = books.some(b => b.title.toLowerCase() === bookConfirmation!.title.toLowerCase())
+    if (duplicate) {
+      setBookSaveError('This book is already in your library.')
+      return
+    }
     setSaving(true)
     setBookSaveError('')
     const { error } = await supabase.from('books').insert({
