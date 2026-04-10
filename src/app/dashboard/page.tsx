@@ -32,6 +32,8 @@ export default function DashboardPage() {
   const [quotePage, setQuotePage] = useState('')
   const [quoteBookId, setQuoteBookId] = useState('')
   const [saving, setSaving] = useState(false)
+  const [bookConfirmation, setBookConfirmation] = useState<{ found: boolean; title: string; author: string; description: string } | null>(null)
+  const [confirmingBook, setConfirmingBook] = useState(false)
 
   // Settings
   const [frequency, setFrequency] = useState('daily')
@@ -59,9 +61,27 @@ export default function DashboardPage() {
 
   const handleAddBook = async (e: React.FormEvent) => {
     e.preventDefault()
+    setConfirmingBook(true)
+    try {
+      const res = await fetch('/api/confirm-book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: bookTitle, author: bookAuthor, lang })
+      })
+      const data = await res.json()
+      setBookConfirmation(data)
+    } catch {
+      setBookConfirmation({ found: false, title: bookTitle, author: bookAuthor, description: '' })
+    }
+    setConfirmingBook(false)
+  }
+
+  const handleConfirmBook = async () => {
     setSaving(true)
-    await supabase.from('books').insert({ title: bookTitle, author: bookAuthor, user_id: user.id })
-    setBookTitle(''); setBookAuthor(''); setShowAddBook(false)
+    const title = bookConfirmation!.title
+    const author = bookConfirmation!.author
+    await supabase.from('books').insert({ title, author, user_id: user.id })
+    setBookTitle(''); setBookAuthor(''); setShowAddBook(false); setBookConfirmation(null)
     await fetchData(user.id)
     setSaving(false)
   }
@@ -158,12 +178,12 @@ export default function DashboardPage() {
           <div>
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-serif text-xl font-bold text-stone-800">{t.dashboard.books}</h2>
-              <button onClick={() => setShowAddBook(!showAddBook)} className="btn-primary text-sm px-4 py-2">
+              <button onClick={() => { setShowAddBook(!showAddBook); setBookConfirmation(null) }} className="btn-primary text-sm px-4 py-2">
                 + {t.dashboard.addBook}
               </button>
             </div>
 
-            {showAddBook && (
+            {showAddBook && !bookConfirmation && (
               <form onSubmit={handleAddBook} className="card mb-4 space-y-3">
                 <div>
                   <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-1.5">{t.dashboard.bookTitle}</label>
@@ -174,10 +194,33 @@ export default function DashboardPage() {
                   <input value={bookAuthor} onChange={e => setBookAuthor(e.target.value)} className="input" />
                 </div>
                 <div className="flex gap-2">
-                  <button type="submit" disabled={saving} className="btn-primary text-sm px-4 py-2">{t.dashboard.save}</button>
+                  <button type="submit" disabled={confirmingBook} className="btn-primary text-sm px-4 py-2">
+                    {confirmingBook ? t.dashboard.confirmingBook : t.dashboard.save}
+                  </button>
                   <button type="button" onClick={() => setShowAddBook(false)} className="btn-secondary text-sm px-4 py-2">{t.dashboard.cancel}</button>
                 </div>
               </form>
+            )}
+
+            {showAddBook && bookConfirmation && (
+              <div className="card mb-4 space-y-4">
+                <div className={`flex items-start gap-3 p-3 rounded-xl ${bookConfirmation.found ? 'bg-emerald-50 border border-emerald-100' : 'bg-amber-50 border border-amber-100'}`}>
+                  <span className="text-lg mt-0.5">{bookConfirmation.found ? '✓' : '?'}</span>
+                  <p className={`text-sm font-medium ${bookConfirmation.found ? 'text-emerald-800' : 'text-amber-800'}`}>
+                    {bookConfirmation.found ? t.dashboard.bookFound : t.dashboard.bookNotFound}
+                  </p>
+                </div>
+                <div>
+                  <p className="font-serif font-bold text-stone-900 text-lg leading-snug">{bookConfirmation.title}</p>
+                  {bookConfirmation.author && <p className="text-sm text-stone-500 mt-0.5">{bookConfirmation.author}</p>}
+                  {bookConfirmation.description && <p className="text-sm text-stone-400 mt-2 italic">{bookConfirmation.description}</p>}
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={handleConfirmBook} disabled={saving} className="btn-primary text-sm px-4 py-2">{t.dashboard.confirmAdd}</button>
+                  <button onClick={() => setBookConfirmation(null)} className="btn-secondary text-sm px-4 py-2">{t.dashboard.editEntry}</button>
+                  <button onClick={() => { setShowAddBook(false); setBookConfirmation(null) }} className="btn-secondary text-sm px-4 py-2">{t.dashboard.cancel}</button>
+                </div>
+              </div>
             )}
 
             {books.length === 0 ? (

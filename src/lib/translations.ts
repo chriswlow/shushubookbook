@@ -58,7 +58,12 @@ export const translations = {
         manual: 'Manual',
         upload: 'Upload',
         ai: 'AI',
-      }
+      },
+      confirmingBook: 'Looking up book...',
+      bookFound: 'Is this the book you meant?',
+      bookNotFound: "We couldn't find this book. Add it anyway?",
+      confirmAdd: 'Yes, add this book',
+      editEntry: 'Edit',
     }
   },
   zh: {
@@ -120,7 +125,12 @@ export const translations = {
         manual: '手動',
         upload: '上傳',
         ai: 'AI',
-      }
+      },
+      confirmingBook: '正在查詢書籍...',
+      bookFound: '這是你要新增的書嗎？',
+      bookNotFound: '找不到這本書，仍然新增嗎？',
+      confirmAdd: '是的，新增此書',
+      editEntry: '修改',
     }
   }
 }
