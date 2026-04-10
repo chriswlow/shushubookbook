@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import Anthropic from '@anthropic-ai/sdk'
-import { Resend } from 'resend'
+import nodemailer from 'nodemailer'
 
 export async function POST(req: Request) {
   const supabase = createClient(
@@ -9,7 +9,10 @@ export async function POST(req: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
-  const resend = new Resend(process.env.RESEND_API_KEY!)
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD },
+  })
   // Verify cron secret to prevent unauthorized calls
   const authHeader = req.headers.get('authorization')
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -137,8 +140,8 @@ Return ONLY valid JSON in this format:
 </html>`
 
     try {
-      await resend.emails.send({
-        from: process.env.RESEND_DOMAIN ? `ShuDrop <noreply@${process.env.RESEND_DOMAIN}>` : 'onboarding@resend.dev',
+      await transporter.sendMail({
+        from: `ShuDrop <${process.env.GMAIL_USER}>`,
         to: setting.delivery_email,
         subject: emailSubject,
         html: emailHtml,
