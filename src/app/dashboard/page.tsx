@@ -252,7 +252,7 @@ export default function DashboardPage() {
               <input
                 value={bookSearch}
                 onChange={e => setBookSearch(e.target.value)}
-                placeholder="Search books..."
+                placeholder="Search your books..."
                 className="input mb-4"
               />
             )}
