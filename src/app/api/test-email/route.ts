@@ -128,7 +128,7 @@ Return ONLY valid JSON in this format:
 
   try {
     await resend.emails.send({
-      from: `ShuDrop <noreply@${process.env.RESEND_DOMAIN || 'shudrop.com'}>`,
+      from: process.env.RESEND_DOMAIN ? `ShuDrop <noreply@${process.env.RESEND_DOMAIN}>` : 'onboarding@resend.dev',
       to: deliveryEmail,
       subject: emailSubject,
       html: emailHtml,
