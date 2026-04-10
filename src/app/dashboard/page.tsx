@@ -44,8 +44,7 @@ export default function DashboardPage() {
   const [quoteCount, setQuoteCount] = useState(4)
   const [settingsSaved, setSettingsSaved] = useState(false)
   const [testingEmail, setTestingEmail] = useState(false)
-  const [testEmailSent, setTestEmailSent] = useState(false)
-  const [testEmailError, setTestEmailError] = useState('')
+  const [testEmailResult, setTestEmailResult] = useState<{ ok: boolean; message: string } | null>(null)
 
   const fetchData = useCallback(async (userId: string) => {
     const [{ data: booksData }, { data: quotesData }, { data: settingsData }] = await Promise.all([
@@ -143,8 +142,7 @@ export default function DashboardPage() {
 
   const handleTestEmail = async () => {
     setTestingEmail(true)
-    setTestEmailSent(false)
-    setTestEmailError('')
+    setTestEmailResult(null)
     const { data: { session } } = await supabase.auth.getSession()
     try {
       const res = await fetch('/api/test-email', {
@@ -152,10 +150,13 @@ export default function DashboardPage() {
         headers: { Authorization: `Bearer ${session?.access_token}` },
       })
       const data = await res.json()
-      if (data.error) setTestEmailError(data.error)
-      else setTestEmailSent(true)
-    } catch {
-      setTestEmailError('Something went wrong. Please try again.')
+      if (data.error) {
+        setTestEmailResult({ ok: false, message: `Error: ${data.error}` })
+      } else {
+        setTestEmailResult({ ok: true, message: `Sent to ${data.to} — check your inbox (and spam folder).` })
+      }
+    } catch (err: any) {
+      setTestEmailResult({ ok: false, message: `Network error: ${err?.message || 'unknown'}` })
     }
     setTestingEmail(false)
   }
@@ -471,8 +472,11 @@ export default function DashboardPage() {
                 <button onClick={handleTestEmail} disabled={testingEmail} className="btn-secondary text-sm px-5 py-2.5">
                   {testingEmail ? t.dashboard.sendingTest : t.dashboard.sendTestEmail}
                 </button>
-                {testEmailSent && <p className="text-sm text-emerald-600">✓ {t.dashboard.testEmailSent}</p>}
-                {testEmailError && <p className="text-sm text-red-500">{testEmailError}</p>}
+                {testEmailResult && (
+                  <p className={`text-sm ${testEmailResult.ok ? 'text-emerald-600' : 'text-red-500'}`}>
+                    {testEmailResult.ok ? '✓ ' : '✗ '}{testEmailResult.message}
+                  </p>
+                )}
               </div>
             </div>
           </div>
