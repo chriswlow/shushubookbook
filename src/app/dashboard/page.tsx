@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { translations, type Language } from '@/lib/translations'
 
-type Book = { id: string; title: string; author: string; created_at: string }
+type Book = { id: string; title: string; author: string; cover_url?: string; created_at: string }
 type Quote = { id: string; text: string; page_number?: number; source: string; book_id: string; books?: { title: string } }
 type Tab = 'books' | 'quotes' | 'settings'
 
@@ -32,21 +32,31 @@ export default function DashboardPage() {
   const [quotePage, setQuotePage] = useState('')
   const [quoteBookId, setQuoteBookId] = useState('')
   const [saving, setSaving] = useState(false)
-  const [bookConfirmation, setBookConfirmation] = useState<{ found: boolean; title: string; author: string; description: string } | null>(null)
+  const [bookConfirmation, setBookConfirmation] = useState<{ found: boolean; title: string; author: string; description: string; cover_url?: string } | null>(null)
   const [confirmingBook, setConfirmingBook] = useState(false)
+  const [deletingBookId, setDeletingBookId] = useState<string | null>(null)
 
   // Settings
   const [frequency, setFrequency] = useState('daily')
   const [deliveryEmail, setDeliveryEmail] = useState('')
+  const [deliveryHour, setDeliveryHour] = useState(8)
+  const [quoteCount, setQuoteCount] = useState(4)
   const [settingsSaved, setSettingsSaved] = useState(false)
 
   const fetchData = useCallback(async (userId: string) => {
-    const [{ data: booksData }, { data: quotesData }] = await Promise.all([
+    const [{ data: booksData }, { data: quotesData }, { data: settingsData }] = await Promise.all([
       supabase.from('books').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
       supabase.from('quotes').select('*, books(title)').eq('user_id', userId).order('created_at', { ascending: false }),
+      supabase.from('user_settings').select('*').eq('user_id', userId).single(),
     ])
     if (booksData) setBooks(booksData)
     if (quotesData) setQuotes(quotesData)
+    if (settingsData) {
+      setFrequency(settingsData.frequency || 'daily')
+      if (settingsData.delivery_email) setDeliveryEmail(settingsData.delivery_email)
+      setDeliveryHour(settingsData.delivery_hour ?? 8)
+      setQuoteCount(settingsData.quote_count ?? 4)
+    }
   }, [supabase])
 
   useEffect(() => {
@@ -78,12 +88,21 @@ export default function DashboardPage() {
 
   const handleConfirmBook = async () => {
     setSaving(true)
-    const title = bookConfirmation!.title
-    const author = bookConfirmation!.author
-    await supabase.from('books').insert({ title, author, user_id: user.id })
+    await supabase.from('books').insert({
+      title: bookConfirmation!.title,
+      author: bookConfirmation!.author,
+      cover_url: bookConfirmation!.cover_url || null,
+      user_id: user.id,
+    })
     setBookTitle(''); setBookAuthor(''); setShowAddBook(false); setBookConfirmation(null)
     await fetchData(user.id)
     setSaving(false)
+  }
+
+  const handleDeleteBook = async (bookId: string) => {
+    await supabase.from('books').delete().eq('id', bookId)
+    setDeletingBookId(null)
+    await fetchData(user.id)
   }
 
   const handleAddQuote = async (e: React.FormEvent) => {
@@ -104,7 +123,8 @@ export default function DashboardPage() {
   const handleSaveSettings = async () => {
     setSaving(true)
     await supabase.from('user_settings').upsert({
-      user_id: user.id, frequency, delivery_email: deliveryEmail, language: lang
+      user_id: user.id, frequency, delivery_email: deliveryEmail, language: lang,
+      delivery_hour: deliveryHour, quote_count: quoteCount,
     }, { onConflict: 'user_id' })
     setSettingsSaved(true)
     setTimeout(() => setSettingsSaved(false), 3000)
@@ -210,10 +230,15 @@ export default function DashboardPage() {
                     {bookConfirmation.found ? t.dashboard.bookFound : t.dashboard.bookNotFound}
                   </p>
                 </div>
-                <div>
-                  <p className="font-serif font-bold text-stone-900 text-lg leading-snug">{bookConfirmation.title}</p>
-                  {bookConfirmation.author && <p className="text-sm text-stone-500 mt-0.5">{bookConfirmation.author}</p>}
-                  {bookConfirmation.description && <p className="text-sm text-stone-400 mt-2 italic">{bookConfirmation.description}</p>}
+                <div className="flex gap-4">
+                  {bookConfirmation.cover_url && (
+                    <img src={bookConfirmation.cover_url} alt={bookConfirmation.title} className="w-14 h-20 object-cover rounded-lg shadow-sm flex-shrink-0" />
+                  )}
+                  <div>
+                    <p className="font-serif font-bold text-stone-900 text-lg leading-snug">{bookConfirmation.title}</p>
+                    {bookConfirmation.author && <p className="text-sm text-stone-500 mt-0.5">{bookConfirmation.author}</p>}
+                    {bookConfirmation.description && <p className="text-sm text-stone-400 mt-2 italic">{bookConfirmation.description}</p>}
+                  </div>
                 </div>
                 <div className="flex gap-2">
                   <button onClick={handleConfirmBook} disabled={saving} className="btn-primary text-sm px-4 py-2">{t.dashboard.confirmAdd}</button>
@@ -229,8 +254,33 @@ export default function DashboardPage() {
               <div className="grid sm:grid-cols-2 gap-3">
                 {books.map(book => (
                   <div key={book.id} className="card hover:shadow-md transition-shadow">
-                    <h3 className="font-serif font-bold text-stone-900">{book.title}</h3>
-                    {book.author && <p className="text-sm text-stone-400 mt-1">{book.author}</p>}
+                    <div className="flex gap-3">
+                      {book.cover_url && (
+                        <img src={book.cover_url} alt={book.title} className="w-12 h-16 object-cover rounded shadow-sm flex-shrink-0" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-serif font-bold text-stone-900 leading-snug">{book.title}</h3>
+                        {book.author && <p className="text-sm text-stone-400 mt-1">{book.author}</p>}
+                      </div>
+                      <button
+                        onClick={() => setDeletingBookId(deletingBookId === book.id ? null : book.id)}
+                        className="text-stone-300 hover:text-red-400 transition-colors flex-shrink-0 self-start text-base leading-none"
+                        aria-label="Remove book"
+                      >✕</button>
+                    </div>
+                    {deletingBookId === book.id && (
+                      <div className="mt-3 p-3 bg-red-50 border border-red-100 rounded-xl space-y-2">
+                        <p className="text-xs text-red-700">{t.dashboard.confirmDeleteBook}</p>
+                        <div className="flex gap-2">
+                          <button onClick={() => handleDeleteBook(book.id)} className="text-xs px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+                            {t.dashboard.deleteBook}
+                          </button>
+                          <button onClick={() => setDeletingBookId(null)} className="text-xs px-3 py-1.5 border border-stone-200 text-stone-600 rounded-lg hover:border-stone-400 transition-colors">
+                            {t.dashboard.cancel}
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -331,6 +381,34 @@ export default function DashboardPage() {
                     >
                       {t.dashboard[f]}
                     </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-3">{t.dashboard.deliveryTime}</label>
+                <div className="flex gap-2 flex-wrap">
+                  {([{ label: '8 AM', value: 8 }, { label: '12 PM', value: 12 }, { label: '3 PM', value: 15 }, { label: '6 PM', value: 18 }, { label: '9 PM', value: 21 }] as const).map(({ label, value }) => (
+                    <button
+                      key={value}
+                      onClick={() => setDeliveryHour(value)}
+                      className={`px-4 py-2 rounded-full text-sm font-medium transition-all border ${
+                        deliveryHour === value ? 'bg-stone-900 text-white border-stone-900' : 'border-stone-200 text-stone-600 hover:border-stone-400'
+                      }`}
+                    >{label}</button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-3">{t.dashboard.quotesPerDrop}</label>
+                <div className="flex gap-2">
+                  {[1, 2, 3, 4, 5].map(n => (
+                    <button
+                      key={n}
+                      onClick={() => setQuoteCount(n)}
+                      className={`w-10 h-10 rounded-full text-sm font-medium transition-all border ${
+                        quoteCount === n ? 'bg-stone-900 text-white border-stone-900' : 'border-stone-200 text-stone-600 hover:border-stone-400'
+                      }`}
+                    >{n}</button>
                   ))}
                 </div>
               </div>

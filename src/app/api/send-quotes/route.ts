@@ -30,6 +30,7 @@ export async function POST(req: Request) {
     // Check if we should send today based on frequency
     if (setting.frequency === 'weekly' && dayOfWeek !== 1) continue // Only Mondays
     if (setting.frequency === 'monthly' && dayOfMonth !== 1) continue // Only 1st of month
+    if (setting.delivery_hour != null && setting.delivery_hour !== today.getUTCHours()) continue
 
     // Get this user's quotes
     const { data: quotes } = await supabase
@@ -55,16 +56,18 @@ export async function POST(req: Request) {
 
     const bookListText = books.map(b => `${b.title}${b.author ? ` by ${b.author}` : ''}`).join(', ')
 
+    const quoteCount = setting.quote_count ?? 4
+
     const prompt = isZh
       ? `你是一個書摘策展人。用戶讀過這些書：${bookListText}。
 ${userQuotesText}
-請選擇或生成 4 句最能引發思考的書摘，混合用戶的個人畫線（如果有的話）和這些書中的著名金句。
+請選擇或生成 ${quoteCount} 句最能引發思考的書摘，混合用戶的個人畫線（如果有的話）和這些書中的著名金句。
 每句書摘請包含：書名、作者。
 以 JSON 格式回傳，格式如下：
 {"quotes": [{"text": "...", "book": "...", "author": "...", "source": "personal 或 ai"}]}`
       : `You are a thoughtful quote curator. The user has read these books: ${bookListText}.
 ${userQuotesText}
-Select or generate 4 quotes that will make them think, feel, or reflect — mixing their personal highlights (if any) with famous lines from their books.
+Select or generate ${quoteCount} quotes that will make them think, feel, or reflect — mixing their personal highlights (if any) with famous lines from their books.
 Each quote must include the book title and author.
 Return ONLY valid JSON in this format:
 {"quotes": [{"text": "...", "book": "...", "author": "...", "source": "personal or ai"}]}`

@@ -36,11 +36,22 @@ If not found or unsure, return: {"found": false, "title": "${title}", "author": 
     if (content.type === 'text') {
       const clean = content.text.replace(/```json|```/g, '').trim()
       const parsed = JSON.parse(clean)
-      return NextResponse.json(parsed)
+
+      // Fetch book cover from Google Books (best-effort, no API key needed)
+      let cover_url = ''
+      try {
+        const q = encodeURIComponent(`intitle:${parsed.title}${parsed.author ? `+inauthor:${parsed.author}` : ''}`)
+        const gbRes = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${q}&maxResults=1&fields=items/volumeInfo/imageLinks`)
+        const gbData = await gbRes.json()
+        const thumbnail = gbData?.items?.[0]?.volumeInfo?.imageLinks?.thumbnail
+        if (thumbnail) cover_url = thumbnail.replace('http://', 'https://')
+      } catch { /* cover is optional */ }
+
+      return NextResponse.json({ ...parsed, cover_url })
     }
   } catch (err) {
     console.error('Claude error:', err)
   }
 
-  return NextResponse.json({ found: false, title, author: author || '', description: '' })
+  return NextResponse.json({ found: false, title, author: author || '', description: '', cover_url: '' })
 }

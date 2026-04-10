@@ -64,6 +64,10 @@ export const translations = {
       bookNotFound: "We couldn't find this book. Add it anyway?",
       confirmAdd: 'Yes, add this book',
       editEntry: 'Edit',
+      deleteBook: 'Remove',
+      confirmDeleteBook: 'Remove this book? All its quotes will be deleted too.',
+      deliveryTime: 'Delivery Time (UTC)',
+      quotesPerDrop: 'Quotes per drop',
     }
   },
   zh: {
@@ -131,6 +135,10 @@ export const translations = {
       bookNotFound: '找不到這本書，仍然新增嗎？',
       confirmAdd: '是的，新增此書',
       editEntry: '修改',
+      deleteBook: '刪除',
+      confirmDeleteBook: '刪除這本書？相關書摘也會一併刪除。',
+      deliveryTime: '寄送時間（UTC）',
+      quotesPerDrop: '每次書摘數量',
     }
   }
 }
