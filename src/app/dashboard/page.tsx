@@ -93,7 +93,6 @@ export default function DashboardPage() {
     const { error } = await supabase.from('books').insert({
       title: bookConfirmation!.title,
       author: bookConfirmation!.author,
-      cover_url: bookConfirmation!.cover_url || null,
       user_id: user.id,
     })
     if (error) {
