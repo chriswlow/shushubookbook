@@ -36,6 +36,7 @@ export default function DashboardPage() {
   const [confirmingBook, setConfirmingBook] = useState(false)
   const [bookSaveError, setBookSaveError] = useState('')
   const [deletingBookId, setDeletingBookId] = useState<string | null>(null)
+  const [bookSearch, setBookSearch] = useState('')
 
   // Settings
   const [frequency, setFrequency] = useState('daily')
@@ -238,11 +239,23 @@ export default function DashboardPage() {
         {tab === 'books' && (
           <div>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-serif text-xl font-bold text-stone-800">{t.dashboard.books}</h2>
+              <h2 className="font-serif text-xl font-bold text-stone-800">
+                {t.dashboard.books}
+                <span className="ml-2 text-sm font-normal text-stone-400">{books.length}</span>
+              </h2>
               <button onClick={() => { setShowAddBook(!showAddBook); setBookConfirmation(null) }} className="btn-primary text-sm px-4 py-2">
                 + {t.dashboard.addBook}
               </button>
             </div>
+
+            {books.length > 0 && (
+              <input
+                value={bookSearch}
+                onChange={e => setBookSearch(e.target.value)}
+                placeholder="Search books..."
+                className="input mb-4"
+              />
+            )}
 
             {showAddBook && !bookConfirmation && (
               <form onSubmit={handleAddBook} className="card mb-4 space-y-3">
@@ -296,7 +309,10 @@ export default function DashboardPage() {
               <div className="card text-center text-stone-400 py-12">{t.dashboard.noBooks}</div>
             ) : (
               <div className="grid sm:grid-cols-2 gap-3">
-                {books.map(book => (
+                {books.filter(b =>
+                  b.title.toLowerCase().includes(bookSearch.toLowerCase()) ||
+                  (b.author && b.author.toLowerCase().includes(bookSearch.toLowerCase()))
+                ).map(book => (
                   <div key={book.id} className="card hover:shadow-md transition-shadow">
                     <div className="flex gap-3">
                       {book.cover_url && (
