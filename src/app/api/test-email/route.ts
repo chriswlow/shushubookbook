@@ -117,7 +117,7 @@ Return ONLY valid JSON in this format:
       <div class="quote-text">"${q.text}"</div>
       <div class="quote-meta">
         <span>— ${q.author ? q.author + ', ' : ''}<em>${q.book}</em></span>
-        <span class="source-badge">${q.source === 'personal' ? (isZh ? '我的畫線' : 'My highlight') : 'AI'}</span>
+        ${q.source === 'personal' ? `<span class="source-badge">${isZh ? '我的畫線' : 'My highlight'}</span>` : ''}
       </div>
     </div>`).join('')}
 

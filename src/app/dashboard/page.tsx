@@ -131,10 +131,16 @@ export default function DashboardPage() {
 
   const handleSaveSettings = async () => {
     setSaving(true)
-    await supabase.from('user_settings').upsert({
+    const { error } = await supabase.from('user_settings').upsert({
       user_id: user.id, frequency, delivery_email: deliveryEmail, language: lang,
       delivery_hour: deliveryHour, quote_count: quoteCount,
     }, { onConflict: 'user_id' })
+    if (error) {
+      console.error('Settings save error:', error)
+      alert(`Settings error: ${error.message}`)
+      setSaving(false)
+      return
+    }
     setSettingsSaved(true)
     setTimeout(() => setSettingsSaved(false), 3000)
     setSaving(false)
