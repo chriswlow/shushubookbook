@@ -137,8 +137,8 @@ Return ONLY valid JSON in this format:
       html: emailHtml,
     })
     return NextResponse.json({ sent: true, to: deliveryEmail })
-  } catch (err) {
+  } catch (err: any) {
     console.error('Email error:', err)
-    return NextResponse.json({ error: 'Failed to send email.' }, { status: 500 })
+    return NextResponse.json({ error: err?.message || 'Failed to send email.' }, { status: 500 })
   }
 }
