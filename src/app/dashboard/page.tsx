@@ -43,6 +43,9 @@ export default function DashboardPage() {
   const [deliveryHour, setDeliveryHour] = useState(8)
   const [quoteCount, setQuoteCount] = useState(4)
   const [settingsSaved, setSettingsSaved] = useState(false)
+  const [testingEmail, setTestingEmail] = useState(false)
+  const [testEmailSent, setTestEmailSent] = useState(false)
+  const [testEmailError, setTestEmailError] = useState('')
 
   const fetchData = useCallback(async (userId: string) => {
     const [{ data: booksData }, { data: quotesData }, { data: settingsData }] = await Promise.all([
@@ -136,6 +139,25 @@ export default function DashboardPage() {
     setSettingsSaved(true)
     setTimeout(() => setSettingsSaved(false), 3000)
     setSaving(false)
+  }
+
+  const handleTestEmail = async () => {
+    setTestingEmail(true)
+    setTestEmailSent(false)
+    setTestEmailError('')
+    const { data: { session } } = await supabase.auth.getSession()
+    try {
+      const res = await fetch('/api/test-email', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      })
+      const data = await res.json()
+      if (data.error) setTestEmailError(data.error)
+      else setTestEmailSent(true)
+    } catch {
+      setTestEmailError('Something went wrong. Please try again.')
+    }
+    setTestingEmail(false)
   }
 
   const handleSignOut = async () => {
@@ -441,6 +463,17 @@ export default function DashboardPage() {
               <button onClick={handleSaveSettings} disabled={saving} className="btn-primary text-sm px-5 py-2.5">
                 {settingsSaved ? `✓ ${t.dashboard.settingsSaved}` : t.dashboard.saveSettings}
               </button>
+              <div className="border-t border-stone-100 pt-5 space-y-3">
+                <div>
+                  <p className="text-sm font-medium text-stone-700">{t.dashboard.sendTestEmail}</p>
+                  <p className="text-xs text-stone-400 mt-0.5">{t.dashboard.testEmailHint}</p>
+                </div>
+                <button onClick={handleTestEmail} disabled={testingEmail} className="btn-secondary text-sm px-5 py-2.5">
+                  {testingEmail ? t.dashboard.sendingTest : t.dashboard.sendTestEmail}
+                </button>
+                {testEmailSent && <p className="text-sm text-emerald-600">✓ {t.dashboard.testEmailSent}</p>}
+                {testEmailError && <p className="text-sm text-red-500">{testEmailError}</p>}
+              </div>
             </div>
           </div>
         )}

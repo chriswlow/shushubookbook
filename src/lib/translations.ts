@@ -68,6 +68,10 @@ export const translations = {
       confirmDeleteBook: 'Remove this book? All its quotes will be deleted too.',
       deliveryTime: 'Delivery Time (UTC)',
       quotesPerDrop: 'Quotes per drop',
+      sendTestEmail: 'Send Test Email',
+      sendingTest: 'Sending...',
+      testEmailSent: 'Test email sent! Check your inbox.',
+      testEmailHint: 'Preview exactly what your drop will look like.',
     }
   },
   zh: {
@@ -139,6 +143,10 @@ export const translations = {
       confirmDeleteBook: '刪除這本書？相關書摘也會一併刪除。',
       deliveryTime: '寄送時間（UTC）',
       quotesPerDrop: '每次書摘數量',
+      sendTestEmail: '傳送測試郵件',
+      sendingTest: '傳送中...',
+      testEmailSent: '測試郵件已傳送！請檢查信箱。',
+      testEmailHint: '預覽你的書摘郵件實際樣子。',
     }
   }
 }
