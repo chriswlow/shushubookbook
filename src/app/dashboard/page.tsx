@@ -34,6 +34,7 @@ export default function DashboardPage() {
   const [saving, setSaving] = useState(false)
   const [bookConfirmation, setBookConfirmation] = useState<{ found: boolean; title: string; author: string; description: string; cover_url?: string } | null>(null)
   const [confirmingBook, setConfirmingBook] = useState(false)
+  const [bookSaveError, setBookSaveError] = useState('')
   const [deletingBookId, setDeletingBookId] = useState<string | null>(null)
 
   // Settings
@@ -88,13 +89,20 @@ export default function DashboardPage() {
 
   const handleConfirmBook = async () => {
     setSaving(true)
-    await supabase.from('books').insert({
+    setBookSaveError('')
+    const { error } = await supabase.from('books').insert({
       title: bookConfirmation!.title,
       author: bookConfirmation!.author,
       cover_url: bookConfirmation!.cover_url || null,
       user_id: user.id,
     })
-    setBookTitle(''); setBookAuthor(''); setShowAddBook(false); setBookConfirmation(null)
+    if (error) {
+      console.error('Book insert error:', error)
+      setBookSaveError(error.message)
+      setSaving(false)
+      return
+    }
+    setBookTitle(''); setBookAuthor(''); setShowAddBook(false); setBookConfirmation(null); setBookSaveError('')
     await fetchData(user.id)
     setSaving(false)
   }
@@ -240,10 +248,13 @@ export default function DashboardPage() {
                     {bookConfirmation.description && <p className="text-sm text-stone-400 mt-2 italic">{bookConfirmation.description}</p>}
                   </div>
                 </div>
+                {bookSaveError && (
+                  <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{bookSaveError}</p>
+                )}
                 <div className="flex gap-2">
-                  <button onClick={handleConfirmBook} disabled={saving} className="btn-primary text-sm px-4 py-2">{t.dashboard.confirmAdd}</button>
-                  <button onClick={() => setBookConfirmation(null)} className="btn-secondary text-sm px-4 py-2">{t.dashboard.editEntry}</button>
-                  <button onClick={() => { setShowAddBook(false); setBookConfirmation(null) }} className="btn-secondary text-sm px-4 py-2">{t.dashboard.cancel}</button>
+                  <button onClick={handleConfirmBook} disabled={saving} className="btn-primary text-sm px-4 py-2">{saving ? 'Saving...' : t.dashboard.confirmAdd}</button>
+                  <button onClick={() => { setBookConfirmation(null); setBookSaveError('') }} className="btn-secondary text-sm px-4 py-2">{t.dashboard.editEntry}</button>
+                  <button onClick={() => { setShowAddBook(false); setBookConfirmation(null); setBookSaveError('') }} className="btn-secondary text-sm px-4 py-2">{t.dashboard.cancel}</button>
                 </div>
               </div>
             )}
