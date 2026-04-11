@@ -447,20 +447,6 @@ export default function DashboardPage() {
                 </div>
               </div>
               <div>
-                <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-3">{t.dashboard.deliveryTime}</label>
-                <div className="flex gap-2 flex-wrap">
-                  {([{ label: '8 AM', value: 8 }, { label: '12 PM', value: 12 }, { label: '3 PM', value: 15 }, { label: '6 PM', value: 18 }, { label: '9 PM', value: 21 }] as const).map(({ label, value }) => (
-                    <button
-                      key={value}
-                      onClick={() => setDeliveryHour(value)}
-                      className={`px-4 py-2 rounded-full text-sm font-medium transition-all border ${
-                        deliveryHour === value ? 'bg-stone-900 text-white border-stone-900' : 'border-stone-200 text-stone-600 hover:border-stone-400'
-                      }`}
-                    >{label}</button>
-                  ))}
-                </div>
-              </div>
-              <div>
                 <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-3">{t.dashboard.quotesPerDrop}</label>
                 <div className="flex gap-2">
                   {[1, 2, 3, 4, 5].map(n => (

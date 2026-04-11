@@ -36,7 +36,6 @@ export async function GET(req: Request) {
     // Check if we should send today based on frequency
     if (setting.frequency === 'weekly' && dayOfWeek !== 1) continue // Only Mondays
     if (setting.frequency === 'monthly' && dayOfMonth !== 1) continue // Only 1st of month
-    if (setting.delivery_hour != null && setting.delivery_hour !== today.getUTCHours()) continue
 
     // Get this user's quotes
     const { data: quotes } = await supabase
