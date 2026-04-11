@@ -43,6 +43,7 @@ export default function DashboardPage() {
   const [deliveryEmail, setDeliveryEmail] = useState('')
   const [deliveryHour, setDeliveryHour] = useState(8)
   const [quoteCount, setQuoteCount] = useState(4)
+  const [paused, setPaused] = useState(false)
   const [settingsSaved, setSettingsSaved] = useState(false)
   const [testingEmail, setTestingEmail] = useState(false)
   const [testEmailResult, setTestEmailResult] = useState<{ ok: boolean; message: string } | null>(null)
@@ -60,6 +61,7 @@ export default function DashboardPage() {
       if (settingsData.delivery_email) setDeliveryEmail(settingsData.delivery_email)
       setDeliveryHour(settingsData.delivery_hour ?? 8)
       setQuoteCount(settingsData.quote_count ?? 4)
+      setPaused(settingsData.paused ?? false)
     }
   }, [supabase])
 
@@ -139,7 +141,7 @@ export default function DashboardPage() {
     setSaving(true)
     const { error } = await supabase.from('user_settings').upsert({
       user_id: user.id, frequency, delivery_email: deliveryEmail, language: lang,
-      delivery_hour: deliveryHour, quote_count: quoteCount,
+      delivery_hour: deliveryHour, quote_count: quoteCount, paused,
     }, { onConflict: 'user_id' })
     if (error) {
       console.error('Settings save error:', error)
@@ -488,6 +490,23 @@ export default function DashboardPage() {
                   ))}
                 </div>
               </div>
+              <div className="flex items-center justify-between py-1">
+                <div>
+                  <p className="text-sm font-medium text-stone-700">{t.dashboard.pauseEmails}</p>
+                  <p className="text-xs text-stone-400 mt-0.5">{t.dashboard.pauseEmailsHint}</p>
+                </div>
+                <button
+                  onClick={() => setPaused(p => !p)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors border-0 ${paused ? 'bg-stone-400' : 'bg-stone-900'}`}
+                  role="switch"
+                  aria-checked={paused}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${paused ? 'translate-x-1' : 'translate-x-6'}`} />
+                </button>
+              </div>
+              {paused && (
+                <p className="text-xs text-amber-600 font-medium">{t.dashboard.emailsPaused}</p>
+              )}
               <button onClick={handleSaveSettings} disabled={saving} className="btn-primary text-sm px-5 py-2.5">
                 {settingsSaved ? `✓ ${t.dashboard.settingsSaved}` : t.dashboard.saveSettings}
               </button>

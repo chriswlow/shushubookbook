@@ -72,6 +72,10 @@ export const translations = {
       sendingTest: 'Sending...',
       testEmailSent: 'Test email sent! Check your inbox.',
       testEmailHint: 'Preview exactly what your drop will look like.',
+      pauseEmails: 'Pause emails',
+      pauseEmailsHint: 'No drops will be sent until you resume.',
+      resumeEmails: 'Resume emails',
+      emailsPaused: 'Emails paused',
     }
   },
   zh: {
@@ -147,6 +151,10 @@ export const translations = {
       sendingTest: '傳送中...',
       testEmailSent: '測試郵件已傳送！請檢查信箱。',
       testEmailHint: '預覽你的書摘郵件實際樣子。',
+      pauseEmails: '暫停寄送',
+      pauseEmailsHint: '恢復前不會寄送任何書摘。',
+      resumeEmails: '繼續寄送',
+      emailsPaused: '已暫停寄送',
     }
   }
 }

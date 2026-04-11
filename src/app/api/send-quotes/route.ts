@@ -30,6 +30,9 @@ export async function GET(req: Request) {
   let sent = 0
 
   for (const setting of settings) {
+    // Skip paused users
+    if (setting.paused) continue
+
     // Check if we should send today based on frequency
     if (setting.frequency === 'weekly' && dayOfWeek !== 1) continue // Only Mondays
     if (setting.frequency === 'monthly' && dayOfMonth !== 1) continue // Only 1st of month
