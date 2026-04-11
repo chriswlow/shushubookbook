@@ -1,17 +1,18 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import Anthropic from '@anthropic-ai/sdk'
-import { Resend } from 'resend'
+import nodemailer from 'nodemailer'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
-const resend = new Resend(process.env.RESEND_API_KEY!)
-
-export async function POST(req: Request) {
+export async function GET(req: Request) {
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD },
+  })
   // Verify cron secret to prevent unauthorized calls
   const authHeader = req.headers.get('authorization')
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -29,9 +30,13 @@ export async function POST(req: Request) {
   let sent = 0
 
   for (const setting of settings) {
+    // Skip paused users
+    if (setting.paused) continue
+
     // Check if we should send today based on frequency
     if (setting.frequency === 'weekly' && dayOfWeek !== 1) continue // Only Mondays
     if (setting.frequency === 'monthly' && dayOfMonth !== 1) continue // Only 1st of month
+    if (setting.delivery_hour != null && setting.delivery_hour !== today.getUTCHours()) continue
 
     // Get this user's quotes
     const { data: quotes } = await supabase
@@ -57,16 +62,18 @@ export async function POST(req: Request) {
 
     const bookListText = books.map(b => `${b.title}${b.author ? ` by ${b.author}` : ''}`).join(', ')
 
+    const quoteCount = setting.quote_count ?? 4
+
     const prompt = isZh
       ? `你是一個書摘策展人。用戶讀過這些書：${bookListText}。
 ${userQuotesText}
-請選擇或生成 4 句最能引發思考的書摘，混合用戶的個人畫線（如果有的話）和這些書中的著名金句。
+請選擇或生成 ${quoteCount} 句最能引發思考的書摘，混合用戶的個人畫線（如果有的話）和這些書中的著名金句。
 每句書摘請包含：書名、作者。
 以 JSON 格式回傳，格式如下：
 {"quotes": [{"text": "...", "book": "...", "author": "...", "source": "personal 或 ai"}]}`
       : `You are a thoughtful quote curator. The user has read these books: ${bookListText}.
 ${userQuotesText}
-Select or generate 4 quotes that will make them think, feel, or reflect — mixing their personal highlights (if any) with famous lines from their books.
+Select or generate ${quoteCount} quotes that will make them think, feel, or reflect — mixing their personal highlights (if any) with famous lines from their books.
 Each quote must include the book title and author.
 Return ONLY valid JSON in this format:
 {"quotes": [{"text": "...", "book": "...", "author": "...", "source": "personal or ai"}]}`
@@ -123,7 +130,7 @@ Return ONLY valid JSON in this format:
       <div class="quote-text">"${q.text}"</div>
       <div class="quote-meta">
         <span>— ${q.author ? q.author + ', ' : ''}<em>${q.book}</em></span>
-        <span class="source-badge">${q.source === 'personal' ? (isZh ? '我的畫線' : 'My highlight') : 'AI'}</span>
+        ${q.source === 'personal' ? `<span class="source-badge">${isZh ? '我的畫線' : 'My highlight'}</span>` : ''}
       </div>
     </div>`).join('')}
 
@@ -136,8 +143,8 @@ Return ONLY valid JSON in this format:
 </html>`
 
     try {
-      await resend.emails.send({
-        from: `ShuDrop <noreply@${process.env.RESEND_DOMAIN || 'shudrop.com'}>`,
+      await transporter.sendMail({
+        from: `ShuDrop <${process.env.GMAIL_USER}>`,
         to: setting.delivery_email,
         subject: emailSubject,
         html: emailHtml,

@@ -27,6 +27,7 @@ create table user_settings (
   frequency text default 'daily', -- 'daily', 'weekly', 'monthly'
   delivery_email text,
   language text default 'en',
+  paused boolean default false,
   last_sent_at timestamptz,
   created_at timestamptz default now()
 );
@@ -45,3 +46,6 @@ create policy "Users can manage their own quotes"
 
 create policy "Users can manage their own settings"
   on user_settings for all using (auth.uid() = user_id);
+
+-- Migration: run this if the table already exists
+-- alter table user_settings add column if not exists paused boolean default false;

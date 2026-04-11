@@ -1,8 +1,11 @@
 {
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
   "crons": [
     {
       "path": "/api/send-quotes",
-      "schedule": "0 8 * * *"
+      "schedule": "0 8,12,15,18,21 * * *"
     }
   ]
 }
