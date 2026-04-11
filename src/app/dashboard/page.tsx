@@ -424,8 +424,7 @@ export default function DashboardPage() {
         {/* Settings Tab */}
         {tab === 'settings' && (
           <div>
-            <h2 className="font-serif text-xl font-bold text-stone-800 mb-2">{t.dashboard.settings}</h2>
-            <p className="text-sm text-stone-500 italic mb-4">Because I want this to be free, (and let&apos;s be real, I am poor), quotes can only be delivered at 5pm Taiwan time.</p>
+            <h2 className="font-serif text-xl font-bold text-stone-800 mb-4">{t.dashboard.settings}</h2>
             <div className="card space-y-5 max-w-md">
               <div>
                 <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-1.5">{t.dashboard.deliveryEmail}</label>
@@ -433,6 +432,7 @@ export default function DashboardPage() {
               </div>
               <div>
                 <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-3">{t.dashboard.frequency}</label>
+                <p className="text-xs text-stone-400 italic mb-2">Because I want this to be free, (and let&apos;s be real, I am cheap), quotes can only be delivered at 5pm Taiwan time.</p>
                 <div className="flex gap-2">
                   {(['daily', 'weekly', 'monthly'] as const).map(f => (
                     <button
