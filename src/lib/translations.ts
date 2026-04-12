@@ -99,7 +99,7 @@ export const translations = {
       tagline: '你最愛的書摘，直送你的信箱。',
       powered: 'AI 驅動',
       cta: '免費開始使用',
-      subCta: '加入不忘好句子的讀者行列。',
+      subCta: '@BenDanLife 的熱情之作。歡迎在 Instagram 上給我們愛心支持。',
     },
     features: {
       title: '如何使用',
