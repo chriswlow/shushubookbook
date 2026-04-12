@@ -63,17 +63,26 @@ export async function GET(req: Request) {
 
     const quoteCount = setting.quote_count ?? 4
 
+    // Build deduplication context from recently sent quotes
+    const recentSentQuotes: string[] = setting.recent_sent_quotes || []
+    const recentQuotesText = recentSentQuotes.length > 0
+      ? (isZh
+          ? `\n請避免重複以下最近已寄送過的書摘：\n${recentSentQuotes.map(q => `- "${q}"`).join('\n')}`
+          : `\nAvoid repeating these recently sent quotes:\n${recentSentQuotes.map(q => `- "${q}"`).join('\n')}`)
+      : ''
+
     const prompt = isZh
       ? `你是一個書摘策展人。用戶讀過這些書：${bookListText}。
-${userQuotesText}
-請選擇 ${quoteCount} 句最能引發思考的書摘，混合用戶的個人畫線（如果有的話）和這些書中的著名金句。
-重要：如果某本書有中文版（繁體或簡體），請直接引用中文版的原文，不要將英文翻譯成中文。只有在該書確實沒有中文版時，才可使用英文原文。
+${userQuotesText}${recentQuotesText}
+請選擇 ${quoteCount} 句最能引發思考的書摘，混合用戶的個人畫線（如果有的話）和這些書中的真實金句。
+重要：只能引用書中真實存在的原文，不得改寫、摘要或自行創作任何內容。如果你不確定某句話的確切原文，請跳過。如果某本書有中文版（繁體或簡體），請直接引用中文版的原文，不要將英文翻譯成中文。只有在該書確實沒有中文版時，才可使用英文原文。
 每句書摘請包含：書名、作者。
 以 JSON 格式回傳，格式如下：
 {"quotes": [{"text": "...", "book": "...", "author": "...", "source": "personal 或 ai"}]}`
       : `You are a thoughtful quote curator. The user has read these books: ${bookListText}.
-${userQuotesText}
-Select or generate ${quoteCount} quotes that will make them think, feel, or reflect — mixing their personal highlights (if any) with famous lines from their books.
+${userQuotesText}${recentQuotesText}
+Select ${quoteCount} quotes from these books that will make them think, feel, or reflect — mixing their personal highlights (if any) with memorable lines from their books.
+IMPORTANT: Only use real, verbatim quotes that actually appear in these books. Do NOT paraphrase, invent, or generate any quote. If you are not certain of the exact wording, skip that quote entirely.
 Each quote must include the book title and author.
 Return ONLY valid JSON in this format:
 {"quotes": [{"text": "...", "book": "...", "author": "...", "source": "personal or ai"}]}`
@@ -151,6 +160,18 @@ Return ONLY valid JSON in this format:
       })
 
       await supabase.from('user_settings').update({ last_sent_at: new Date().toISOString() }).eq('user_id', setting.user_id)
+
+      // Track sent quotes for deduplication (keep last 30 to avoid infinite growth)
+      try {
+        const newSentTexts = quotesToSend.map((q: any) => q.text)
+        const updatedRecentQuotes = [...recentSentQuotes, ...newSentTexts].slice(-30)
+        await supabase.from('user_settings')
+          .update({ recent_sent_quotes: updatedRecentQuotes })
+          .eq('user_id', setting.user_id)
+      } catch {
+        // Column may not exist yet; deduplication will activate once migration is run
+      }
+
       sent++
     } catch (err) {
       console.error('Email error:', err)

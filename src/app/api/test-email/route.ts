@@ -54,14 +54,15 @@ export async function POST(req: Request) {
   const prompt = isZh
     ? `你是一個書摘策展人。用戶讀過這些書：${bookListText}。
 ${userQuotesText}
-請選擇 ${quoteCount} 句最能引發思考的書摘，混合用戶的個人畫線（如果有的話）和這些書中的著名金句。
-重要：如果某本書有中文版（繁體或簡體），請直接引用中文版的原文，不要將英文翻譯成中文。只有在該書確實沒有中文版時，才可使用英文原文。
+請選擇 ${quoteCount} 句最能引發思考的書摘，混合用戶的個人畫線（如果有的話）和這些書中的真實金句。
+重要：只能引用書中真實存在的原文，不得改寫、摘要或自行創作任何內容。如果你不確定某句話的確切原文，請跳過。如果某本書有中文版（繁體或簡體），請直接引用中文版的原文，不要將英文翻譯成中文。只有在該書確實沒有中文版時，才可使用英文原文。
 每句書摘請包含：書名、作者。
 以 JSON 格式回傳，格式如下：
 {"quotes": [{"text": "...", "book": "...", "author": "...", "source": "personal 或 ai"}]}`
     : `You are a thoughtful quote curator. The user has read these books: ${bookListText}.
 ${userQuotesText}
-Select or generate ${quoteCount} quotes that will make them think, feel, or reflect — mixing their personal highlights (if any) with famous lines from their books.
+Select ${quoteCount} quotes from these books that will make them think, feel, or reflect — mixing their personal highlights (if any) with memorable lines from their books.
+IMPORTANT: Only use real, verbatim quotes that actually appear in these books. Do NOT paraphrase, invent, or generate any quote. If you are not certain of the exact wording, skip that quote entirely.
 Each quote must include the book title and author.
 Return ONLY valid JSON in this format:
 {"quotes": [{"text": "...", "book": "...", "author": "...", "source": "personal or ai"}]}`

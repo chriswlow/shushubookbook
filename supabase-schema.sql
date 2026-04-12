@@ -49,3 +49,4 @@ create policy "Users can manage their own settings"
 
 -- Migration: run this if the table already exists
 -- alter table user_settings add column if not exists paused boolean default false;
+-- alter table user_settings add column if not exists recent_sent_quotes jsonb default '[]'::jsonb;
