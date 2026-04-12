@@ -10,7 +10,7 @@ function AuthPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [lang, setLang] = useState<Language>('en')
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin')
+  const [mode, setMode] = useState<'signin' | 'signup' | 'forgot'>('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -32,12 +32,29 @@ function AuthPageContent() {
       const { error } = await supabase.auth.signUp({ email, password })
       if (error) setError(error.message)
       else setSuccess('Check your email to confirm your account!')
+    } else if (mode === 'forgot') {
+      const redirectTo = `${window.location.origin}/auth/reset-password`
+      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
+      if (error) setError(error.message)
+      else setSuccess(t.auth.resetEmailSent)
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) setError(error.message)
       else router.push('/dashboard')
     }
     setLoading(false)
+  }
+
+  const switchToForgot = () => {
+    setMode('forgot')
+    setError('')
+    setSuccess('')
+  }
+
+  const switchToSignIn = () => {
+    setMode('signin')
+    setError('')
+    setSuccess('')
   }
 
   return (
@@ -56,21 +73,33 @@ function AuthPageContent() {
         <div className="w-full max-w-sm">
           <div className="text-center mb-8">
             <h1 className="font-serif text-3xl font-bold text-stone-900 mb-2">
-              {mode === 'signin' ? t.auth.signIn : t.auth.signUp}
+              {mode === 'forgot' ? t.auth.forgotPassword : mode === 'signin' ? t.auth.signIn : t.auth.signUp}
             </h1>
-            <p className="text-sm text-stone-400">
-              {mode === 'signin' ? t.auth.noAccount : t.auth.hasAccount}{' '}
-              <button
-                onClick={() => setMode(mode === 'signin' ? 'signup' : 'signin')}
-                className="text-stone-700 underline underline-offset-2"
-              >
-                {mode === 'signin' ? t.auth.signUp : t.auth.signIn}
-              </button>
-            </p>
+            {mode !== 'forgot' && (
+              <p className="text-sm text-stone-400">
+                {mode === 'signin' ? t.auth.noAccount : t.auth.hasAccount}{' '}
+                <button
+                  onClick={() => setMode(mode === 'signin' ? 'signup' : 'signin')}
+                  className="text-stone-700 underline underline-offset-2"
+                >
+                  {mode === 'signin' ? t.auth.signUp : t.auth.signIn}
+                </button>
+              </p>
+            )}
           </div>
 
           {success ? (
-            <div className="card text-center text-stone-600 text-sm">{success}</div>
+            <div className="card text-center space-y-4">
+              <p className="text-stone-600 text-sm">{success}</p>
+              {mode === 'forgot' && (
+                <button
+                  onClick={switchToSignIn}
+                  className="text-sm text-stone-700 underline underline-offset-2"
+                >
+                  {t.auth.backToSignIn}
+                </button>
+              )}
+            </div>
           ) : (
             <form onSubmit={handleSubmit} className="card space-y-4">
               {error && (
@@ -90,22 +119,50 @@ function AuthPageContent() {
                   required
                 />
               </div>
-              <div>
-                <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-1.5">
-                  {t.auth.password}
-                </label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  className="input"
-                  required
-                  minLength={6}
-                />
-              </div>
+              {mode !== 'forgot' && (
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-medium text-stone-500 uppercase tracking-wide">
+                      {t.auth.password}
+                    </label>
+                    {mode === 'signin' && (
+                      <button
+                        type="button"
+                        onClick={switchToForgot}
+                        className="text-xs text-stone-400 hover:text-stone-600 transition-colors"
+                      >
+                        {t.auth.forgotPassword}
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    className="input"
+                    required
+                    minLength={6}
+                  />
+                </div>
+              )}
               <button type="submit" disabled={loading} className="btn-primary w-full justify-center">
-                {loading ? t.auth.loading : mode === 'signin' ? t.auth.signIn : t.auth.signUp}
+                {loading
+                  ? t.auth.loading
+                  : mode === 'forgot'
+                  ? t.auth.sendResetLink
+                  : mode === 'signin'
+                  ? t.auth.signIn
+                  : t.auth.signUp}
               </button>
+              {mode === 'forgot' && (
+                <button
+                  type="button"
+                  onClick={switchToSignIn}
+                  className="w-full text-center text-sm text-stone-400 hover:text-stone-600 transition-colors"
+                >
+                  {t.auth.backToSignIn}
+                </button>
+              )}
             </form>
           )}
         </div>
