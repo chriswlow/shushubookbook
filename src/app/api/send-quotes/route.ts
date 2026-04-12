@@ -63,12 +63,16 @@ export async function GET(req: Request) {
 
     const quoteCount = setting.quote_count ?? 4
 
-    // Build deduplication context from recently sent quotes
-    const recentSentQuotes: string[] = setting.recent_sent_quotes || []
+    // Build deduplication context — filter by a rolling window based on frequency
+    // daily: 14 days, weekly: 56 days (8 weeks), monthly: 180 days
+    const windowDays = setting.frequency === 'monthly' ? 180 : setting.frequency === 'weekly' ? 56 : 14
+    const windowMs = windowDays * 24 * 60 * 60 * 1000
+    const allSentQuotes: { text: string; sent_at: string }[] = setting.recent_sent_quotes || []
+    const recentSentQuotes = allSentQuotes.filter(q => Date.now() - new Date(q.sent_at).getTime() < windowMs)
     const recentQuotesText = recentSentQuotes.length > 0
       ? (isZh
-          ? `\n請避免重複以下最近已寄送過的書摘：\n${recentSentQuotes.map(q => `- "${q}"`).join('\n')}`
-          : `\nAvoid repeating these recently sent quotes:\n${recentSentQuotes.map(q => `- "${q}"`).join('\n')}`)
+          ? `\n請避免重複以下最近已寄送過的書摘：\n${recentSentQuotes.map(q => `- "${q.text}"`).join('\n')}`
+          : `\nAvoid repeating these recently sent quotes:\n${recentSentQuotes.map(q => `- "${q.text}"`).join('\n')}`)
       : ''
 
     const prompt = isZh
@@ -161,12 +165,16 @@ Return ONLY valid JSON in this format:
 
       await supabase.from('user_settings').update({ last_sent_at: new Date().toISOString() }).eq('user_id', setting.user_id)
 
-      // Track sent quotes for deduplication (keep last 30 to avoid infinite growth)
+      // Track sent quotes for deduplication — append new entries, prune anything beyond the max window
       try {
-        const newSentTexts = quotesToSend.map((q: any) => q.text)
-        const updatedRecentQuotes = [...recentSentQuotes, ...newSentTexts].slice(-30)
+        const sentAt = new Date().toISOString()
+        const newEntries = quotesToSend.map((q: any) => ({ text: q.text, sent_at: sentAt }))
+        const maxWindowMs = 180 * 24 * 60 * 60 * 1000 // keep up to 180 days regardless of current frequency
+        const pruned = [...allSentQuotes, ...newEntries].filter(
+          q => Date.now() - new Date(q.sent_at).getTime() < maxWindowMs
+        )
         await supabase.from('user_settings')
-          .update({ recent_sent_quotes: updatedRecentQuotes })
+          .update({ recent_sent_quotes: pruned })
           .eq('user_id', setting.user_id)
       } catch {
         // Column may not exist yet; deduplication will activate once migration is run
