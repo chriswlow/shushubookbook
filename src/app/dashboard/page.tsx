@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import { useState, useEffect, useCallback } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { translations, type Language } from '@/lib/translations'
 
@@ -13,14 +13,12 @@ type Tab = 'books' | 'quotes' | 'settings'
 
 export default function DashboardPage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const supabase = createClient()
   const [lang, setLang] = useState<Language>('en')
   const t = translations[lang]
 
   const [user, setUser] = useState<any>(null)
-  const initialTab = (searchParams.get('tab') as Tab) || 'books'
-  const [tab, setTab] = useState<Tab>(initialTab)
+  const [tab, setTab] = useState<Tab>('books')
   const [books, setBooks] = useState<Book[]>([])
   const [quotes, setQuotes] = useState<Quote[]>([])
   const [loading, setLoading] = useState(true)
@@ -66,6 +64,14 @@ export default function DashboardPage() {
       setPaused(settingsData.paused ?? false)
     }
   }, [supabase])
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const tabParam = params.get('tab') as Tab | null
+    if (tabParam && ['books', 'quotes', 'settings'].includes(tabParam)) {
+      setTab(tabParam)
+    }
+  }, [])
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
