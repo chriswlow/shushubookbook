@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import { useState, useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { translations, type Language } from '@/lib/translations'
 
@@ -13,12 +13,14 @@ type Tab = 'books' | 'quotes' | 'settings'
 
 export default function DashboardPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
   const [lang, setLang] = useState<Language>('en')
   const t = translations[lang]
 
   const [user, setUser] = useState<any>(null)
-  const [tab, setTab] = useState<Tab>('books')
+  const initialTab = (searchParams.get('tab') as Tab) || 'books'
+  const [tab, setTab] = useState<Tab>(initialTab)
   const [books, setBooks] = useState<Book[]>([])
   const [quotes, setQuotes] = useState<Quote[]>([])
   const [loading, setLoading] = useState(true)

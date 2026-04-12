@@ -124,7 +124,7 @@ Return ONLY valid JSON in this format:
 
     <div class="footer">
       ${isZh ? '由 AI 策展 · ' : 'Curated by AI · '}
-      <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard">${isZh ? '管理設定' : 'Manage settings'}</a>
+      <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard?tab=settings">${isZh ? '管理設定' : 'Manage settings'}</a>
     </div>
   </div>
 </body>
