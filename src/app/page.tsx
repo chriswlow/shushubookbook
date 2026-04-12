@@ -52,7 +52,9 @@ export default function HomePage() {
         </div>
 
         <p className="text-sm text-stone-400 mt-5 animate-fade-up-delay-3">
-          {t.hero.subCta}
+          {t.hero.subCta.split('@BenDanLife')[0]}
+          <a href="https://www.instagram.com/bendanlife" target="_blank" rel="noopener noreferrer" className="underline hover:text-stone-600 transition-colors">@BenDanLife</a>
+          {t.hero.subCta.split('@BenDanLife')[1]}
         </p>
 
         {/* Decorative quote card */}
