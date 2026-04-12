@@ -11,7 +11,7 @@ export const translations = {
       tagline: 'Your favourite quotes, dropped to your inbox.',
       powered: 'Powered by AI',
       cta: 'Get Started — It\'s Free',
-      subCta: 'Join readers who never forget a great line.',
+      subCta: 'A passion project by @BenDanLife. Show some love on Instagram.',
     },
     features: {
       title: 'How it works',
