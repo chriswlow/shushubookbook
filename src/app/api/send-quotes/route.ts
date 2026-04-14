@@ -63,16 +63,24 @@ export async function GET(req: Request) {
 
     const quoteCount = setting.quote_count ?? 4
 
-    const prompt = isZh
+    // Build deduplication section from previously sent quotes
+    const recentTexts: string[] = setting.recent_quote_texts || []
+    const avoidSection = recentTexts.length > 0
+      ? isZh
+        ? `\n請不要重複以下最近已寄出的書摘，請選擇不同的段落或句子：\n${recentTexts.slice(0, 15).map(t => `- "${t.substring(0, 80)}"`).join('\n')}`
+        : `\nDo NOT repeat any of these recently sent quotes — choose entirely different passages:\n${recentTexts.slice(0, 15).map(t => `- "${t.substring(0, 80)}"`).join('\n')}`
+      : ''
+
+    const basePrompt = isZh
       ? `你是一個書摘策展人。用戶讀過這些書：${bookListText}。
-${userQuotesText}
+${userQuotesText}${avoidSection}
 你必須精確選擇 ${quoteCount} 句書摘，不多不少，混合用戶的個人畫線（如果有的話）和這些書中的著名金句。
 重要：如果某本書有中文版（繁體或簡體），請直接引用中文版的原文，不要將英文翻譯成中文。只有在該書確實沒有中文版時，才可使用英文原文。
 每句書摘請包含：書名、作者。
 以 JSON 格式回傳，格式如下：
 {"quotes": [{"text": "...", "book": "...", "author": "...", "source": "personal 或 ai"}]}`
       : `You are a thoughtful quote curator. The user has read these books: ${bookListText}.
-${userQuotesText}
+${userQuotesText}${avoidSection}
 You MUST return EXACTLY ${quoteCount} quotes — no more, no fewer. Mix their personal highlights (if any) with famous lines from their books to make them think, feel, or reflect.
 Each quote must include the book title and author.
 Return ONLY valid JSON in this format:
@@ -80,22 +88,29 @@ Return ONLY valid JSON in this format:
 
     let quotesToSend: any[] = []
 
-    try {
-      const response = await anthropic.messages.create({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 2000,
-        messages: [{ role: 'user', content: prompt }]
-      })
-
-      const content = response.content[0]
-      if (content.type === 'text') {
-        const clean = content.text.replace(/```json|```/g, '').trim()
-        const parsed = JSON.parse(clean)
-        quotesToSend = parsed.quotes || []
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      const retryNote = attempt > 1
+        ? isZh
+          ? `\n！重要！上次你回傳了 ${quotesToSend.length} 句，但需要剛好 ${quoteCount} 句。請重新回傳 ${quoteCount} 句，不多不少。`
+          : `\nCRITICAL: You returned ${quotesToSend.length} quotes last time but I need EXACTLY ${quoteCount}. Return exactly ${quoteCount} — no more, no fewer.`
+        : ''
+      try {
+        const response = await anthropic.messages.create({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 2000,
+          messages: [{ role: 'user', content: basePrompt + retryNote }]
+        })
+        const content = response.content[0]
+        if (content.type === 'text') {
+          const clean = content.text.replace(/```json|```/g, '').trim()
+          const parsed = JSON.parse(clean)
+          quotesToSend = parsed.quotes || []
+        }
+        if (quotesToSend.length === quoteCount) break
+      } catch (err) {
+        console.error('Claude error:', err)
+        break
       }
-    } catch (err) {
-      console.error('Claude error:', err)
-      continue
     }
 
     if (quotesToSend.length === 0) continue
@@ -150,7 +165,13 @@ Return ONLY valid JSON in this format:
         html: emailHtml,
       })
 
-      await supabase.from('user_settings').update({ last_sent_at: new Date().toISOString() }).eq('user_id', setting.user_id)
+      // Update last_sent_at and store sent quote texts for future deduplication
+      const newTexts = quotesToSend.map((q: any) => q.text)
+      const updatedTexts = [...newTexts, ...recentTexts].slice(0, 20)
+      await supabase.from('user_settings').update({
+        last_sent_at: new Date().toISOString(),
+        recent_quote_texts: updatedTexts,
+      }).eq('user_id', setting.user_id)
       sent++
     } catch (err) {
       console.error('Email error:', err)

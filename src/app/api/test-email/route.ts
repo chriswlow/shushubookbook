@@ -67,20 +67,29 @@ Return ONLY valid JSON in this format:
 {"quotes": [{"text": "...", "book": "...", "author": "...", "source": "personal or ai"}]}`
 
   let quotesToSend: any[] = []
-  try {
-    const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 2000,
-      messages: [{ role: 'user', content: prompt }]
-    })
-    const content = response.content[0]
-    if (content.type === 'text') {
-      const clean = content.text.replace(/```json|```/g, '').trim()
-      quotesToSend = JSON.parse(clean).quotes || []
+
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const retryNote = attempt > 1
+      ? isZh
+        ? `\n！重要！上次你回傳了 ${quotesToSend.length} 句，但需要剛好 ${quoteCount} 句。請重新回傳 ${quoteCount} 句，不多不少。`
+        : `\nCRITICAL: You returned ${quotesToSend.length} quotes last time but I need EXACTLY ${quoteCount}. Return exactly ${quoteCount} — no more, no fewer.`
+      : ''
+    try {
+      const response = await anthropic.messages.create({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 2000,
+        messages: [{ role: 'user', content: prompt + retryNote }]
+      })
+      const content = response.content[0]
+      if (content.type === 'text') {
+        const clean = content.text.replace(/```json|```/g, '').trim()
+        quotesToSend = JSON.parse(clean).quotes || []
+      }
+      if (quotesToSend.length === quoteCount) break
+    } catch (err) {
+      console.error('Claude error:', err)
+      return NextResponse.json({ error: 'Failed to generate quotes.' }, { status: 500 })
     }
-  } catch (err) {
-    console.error('Claude error:', err)
-    return NextResponse.json({ error: 'Failed to generate quotes.' }, { status: 500 })
   }
 
   if (quotesToSend.length === 0) {

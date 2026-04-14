@@ -47,5 +47,8 @@ create policy "Users can manage their own quotes"
 create policy "Users can manage their own settings"
   on user_settings for all using (auth.uid() = user_id);
 
--- Migration: run this if the table already exists
+-- Migrations: run these if the table already exists
 -- alter table user_settings add column if not exists paused boolean default false;
+-- alter table user_settings add column if not exists quote_count integer default 4;
+-- alter table user_settings add column if not exists delivery_hour integer default 9;
+-- alter table user_settings add column if not exists recent_quote_texts text[] default '{}';
