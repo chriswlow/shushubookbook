@@ -168,10 +168,11 @@ Return ONLY valid JSON in this format:
       // Update last_sent_at and store sent quote texts for future deduplication
       const newTexts = quotesToSend.map((q: any) => q.text)
       const updatedTexts = [...newTexts, ...recentTexts].slice(0, 20)
-      await supabase.from('user_settings').update({
+      const { error: updateError } = await supabase.from('user_settings').update({
         last_sent_at: new Date().toISOString(),
         recent_quote_texts: updatedTexts,
       }).eq('user_id', setting.user_id)
+      if (updateError) console.error('Failed to save recent_quote_texts:', updateError.message)
       sent++
     } catch (err) {
       console.error('Email error:', err)
