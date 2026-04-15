@@ -74,14 +74,14 @@ export async function GET(req: Request) {
     const basePrompt = isZh
       ? `你是一個書摘策展人。用戶讀過這些書：${bookListText}。
 ${userQuotesText}${avoidSection}
-你必須精確選擇 ${quoteCount} 句書摘，不多不少，混合用戶的個人畫線（如果有的話）和這些書中的著名金句。
+你必須精確選擇 ${quoteCount} 句書摘，不多不少。優先使用用戶的個人畫線，盡量多包含。若仍需補充，只能引用你確定是原文、確實出現在書中的句子，不可改寫或捏造。
 重要：如果某本書有中文版（繁體或簡體），請直接引用中文版的原文，不要將英文翻譯成中文。只有在該書確實沒有中文版時，才可使用英文原文。
 每句書摘請包含：書名、作者。
 以 JSON 格式回傳，格式如下：
 {"quotes": [{"text": "...", "book": "...", "author": "...", "source": "personal 或 ai"}]}`
       : `You are a thoughtful quote curator. The user has read these books: ${bookListText}.
 ${userQuotesText}${avoidSection}
-You MUST return EXACTLY ${quoteCount} quotes — no more, no fewer. Mix their personal highlights (if any) with famous lines from their books to make them think, feel, or reflect.
+You MUST return EXACTLY ${quoteCount} quotes — no more, no fewer. Prioritise their personal highlights — include as many as possible. For any remaining slots, only use verbatim quotes you are certain actually appear in these books. Do NOT paraphrase, invent, or approximate quotes.
 Each quote must include the book title and author.
 Return ONLY valid JSON in this format:
 {"quotes": [{"text": "...", "book": "...", "author": "...", "source": "personal or ai"}]}`
