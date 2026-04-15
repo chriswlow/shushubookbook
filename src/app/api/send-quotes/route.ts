@@ -67,8 +67,8 @@ export async function GET(req: Request) {
     const recentTexts: string[] = setting.recent_quote_texts || []
     const avoidSection = recentTexts.length > 0
       ? isZh
-        ? `\n請不要重複以下最近已寄出的書摘，請選擇不同的段落或句子：\n${recentTexts.slice(0, 15).map(t => `- "${t.substring(0, 80)}"`).join('\n')}`
-        : `\nDo NOT repeat any of these recently sent quotes — choose entirely different passages:\n${recentTexts.slice(0, 15).map(t => `- "${t.substring(0, 80)}"`).join('\n')}`
+        ? `\n以下是最近已寄出的書摘，請盡量選擇不同的段落，但若選不夠 ${quoteCount} 句新的，可以重複使用：\n${recentTexts.slice(0, 10).map(t => `- "${t.substring(0, 80)}"`).join('\n')}`
+        : `\nThese quotes were recently sent — prefer different passages, but always prioritise returning exactly ${quoteCount} quotes over avoiding repeats:\n${recentTexts.slice(0, 10).map(t => `- "${t.substring(0, 80)}"`).join('\n')}`
       : ''
 
     const basePrompt = isZh
