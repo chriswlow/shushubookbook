@@ -10,7 +10,9 @@ export async function GET(req: Request) {
   )
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
   const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp-mail.outlook.com',
+    port: 587,
+    secure: false,
     auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD },
   })
   // Verify cron secret to prevent unauthorized calls
