@@ -10,10 +10,10 @@ export async function GET(req: Request) {
   )
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
   const transporter = nodemailer.createTransport({
-    host: 'smtp-mail.outlook.com',
+    host: 'smtp-relay.brevo.com',
     port: 587,
     secure: false,
-    auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD },
+    auth: { user: process.env.BREVO_USER, pass: process.env.BREVO_SMTP_KEY },
   })
   // Verify cron secret to prevent unauthorized calls
   const authHeader = req.headers.get('authorization')
@@ -162,7 +162,7 @@ Return ONLY valid JSON in this format:
 
     try {
       await transporter.sendMail({
-        from: `ShuDrop <${process.env.GMAIL_USER}>`,
+        from: `ShuDrop <${process.env.BREVO_USER}>`,
         to: setting.delivery_email,
         subject: emailSubject,
         html: emailHtml,

@@ -42,10 +42,10 @@ export async function POST(req: Request) {
 
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
   const transporter = nodemailer.createTransport({
-    host: 'smtp-mail.outlook.com',
+    host: 'smtp-relay.brevo.com',
     port: 587,
     secure: false,
-    auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD },
+    auth: { user: process.env.BREVO_USER, pass: process.env.BREVO_SMTP_KEY },
   })
 
   const bookListText = books.map((b: any) => `${b.title}${b.author ? ` by ${b.author}` : ''}`).join(', ')
@@ -143,7 +143,7 @@ Return ONLY valid JSON in this format:
 
   try {
     await transporter.sendMail({
-      from: `ShuDrop <${process.env.GMAIL_USER}>`,
+      from: `ShuDrop <${process.env.BREVO_USER}>`,
       to: deliveryEmail,
       subject: emailSubject,
       html: emailHtml,
