@@ -50,6 +50,7 @@ export async function GET(req: Request) {
       .eq('user_id', setting.user_id)
 
     if (!books || books.length === 0) continue
+    if (!setting.delivery_email) continue
 
     const lang = setting.language || 'en'
     const isZh = lang === 'zh'
@@ -96,7 +97,7 @@ Return ONLY valid JSON in this format:
         : ''
       try {
         const response = await anthropic.messages.create({
-          model: 'claude-sonnet-4-20250514',
+          model: 'claude-sonnet-4-6',
           max_tokens: 2000,
           messages: [{ role: 'user', content: basePrompt + retryNote }]
         })
@@ -107,8 +108,8 @@ Return ONLY valid JSON in this format:
           quotesToSend = parsed.quotes || []
         }
         if (quotesToSend.length === quoteCount) break
-      } catch (err) {
-        console.error('Claude error:', err)
+      } catch (err: any) {
+        console.error('Claude error for user', setting.user_id, ':', err?.message || err)
         break
       }
     }
