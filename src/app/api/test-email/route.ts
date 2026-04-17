@@ -143,7 +143,7 @@ Return ONLY valid JSON in this format:
 
   try {
     await transporter.sendMail({
-      from: `ShuDrop <${process.env.BREVO_USER}>`,
+      from: `ShuDrop <${process.env.BREVO_SENDER}>`,
       to: deliveryEmail,
       subject: emailSubject,
       html: emailHtml,
