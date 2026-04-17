@@ -57,69 +57,67 @@ export async function GET(req: Request) {
     const lang = setting.language || 'en'
     const isZh = lang === 'zh'
 
-    // Build prompt for Claude
     const userQuotesText = quotes && quotes.length > 0
       ? `User's personal highlights:\n${quotes.map(q => `- "${q.text}" (from: ${q.books?.title})`).join('\n')}`
       : ''
 
     const bookListText = books.map(b => `${b.title}${b.author ? ` by ${b.author}` : ''}`).join(', ')
-
     const quoteCount = setting.quote_count ?? 4
 
-    // Build deduplication section from previously sent quotes
     const recentTexts: string[] = setting.recent_quote_texts || []
     const avoidSection = recentTexts.length > 0
       ? isZh
-        ? `\n以下是最近已寄出的書摘，請盡量選擇不同的段落，但若選不夠 ${quoteCount} 句新的，可以重複使用：\n${recentTexts.slice(0, 10).map(t => `- "${t.substring(0, 80)}"`).join('\n')}`
-        : `\nThese quotes were recently sent — prefer different passages, but always prioritise returning exactly ${quoteCount} quotes over avoiding repeats:\n${recentTexts.slice(0, 10).map(t => `- "${t.substring(0, 80)}"`).join('\n')}`
+        ? `\n以下是最近已寄出的書摘，請盡量選擇不同的段落：\n${recentTexts.slice(0, 10).map(t => `- "${t.substring(0, 80)}"`).join('\n')}`
+        : `\nThese quotes were recently sent — prefer different passages where possible:\n${recentTexts.slice(0, 10).map(t => `- "${t.substring(0, 80)}"`).join('\n')}`
       : ''
 
     const basePrompt = isZh
       ? `你是一個書摘策展人。用戶讀過這些書：${bookListText}。
 ${userQuotesText}${avoidSection}
-你必須精確選擇 ${quoteCount} 句書摘，不多不少。優先使用用戶的個人畫線，盡量多包含。若仍需補充，只能引用你確定是原文、確實出現在書中的句子，不可改寫或捏造。
-重要：如果某本書有中文版（繁體或簡體），請直接引用中文版的原文，不要將英文翻譯成中文。只有在該書確實沒有中文版時，才可使用英文原文。
-每句書摘請包含：書名、作者。
-以 JSON 格式回傳，格式如下：
-{"quotes": [{"text": "...", "book": "...", "author": "...", "source": "personal 或 ai"}]}`
+
+任務一——書摘：最多選 ${quoteCount} 句書摘。優先使用用戶的個人畫線，盡量多包含。若需補充，只能引用你 100% 確定是原文、確實出現在書中的句子——若不確定，寧可少選也不要捏造。
+重要：如果某本書有中文版（繁體或簡體），請直接引用中文版的原文。只有在該書確實沒有中文版時，才可使用英文原文。
+
+任務二——選書推薦：根據用戶的書單，推薦一本他們尚未讀過、但可能會喜歡的書，附上一句推薦理由。
+
+以 JSON 格式回傳：
+{"quotes": [{"text": "...", "book": "...", "author": "...", "source": "personal 或 ai"}], "recommendation": {"title": "...", "author": "...", "reason": "..."}}`
       : `You are a thoughtful quote curator. The user has read these books: ${bookListText}.
 ${userQuotesText}${avoidSection}
-You MUST return EXACTLY ${quoteCount} quotes — no more, no fewer. Prioritise their personal highlights — include as many as possible. For any remaining slots, only use verbatim quotes you are certain actually appear in these books. Do NOT paraphrase, invent, or approximate quotes.
-Each quote must include the book title and author.
-Return ONLY valid JSON in this format:
-{"quotes": [{"text": "...", "book": "...", "author": "...", "source": "personal or ai"}]}`
+
+Task 1 — Quotes: Return up to ${quoteCount} quotes. Always include personal highlights first. For remaining slots, only include verbatim quotes you are 100% certain appear in these books — if unsure, skip the slot rather than risk fabricating. Return as many as you're confident about, up to ${quoteCount}.
+
+Task 2 — Book recommendation: Based on the user's reading list, recommend ONE book they haven't read yet that they'd likely enjoy. Give a one-sentence reason.
+
+Return ONLY valid JSON:
+{"quotes": [{"text": "...", "book": "...", "author": "...", "source": "personal or ai"}], "recommendation": {"title": "...", "author": "...", "reason": "..."}}`
 
     let quotesToSend: any[] = []
+    let recommendation: any = null
 
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      const retryNote = attempt > 1
-        ? isZh
-          ? `\n！重要！上次你回傳了 ${quotesToSend.length} 句，但需要剛好 ${quoteCount} 句。請重新回傳 ${quoteCount} 句，不多不少。`
-          : `\nCRITICAL: You returned ${quotesToSend.length} quotes last time but I need EXACTLY ${quoteCount}. Return exactly ${quoteCount} — no more, no fewer.`
-        : ''
-      try {
-        const response = await anthropic.messages.create({
-          model: 'claude-sonnet-4-6',
-          max_tokens: 2000,
-          messages: [{ role: 'user', content: basePrompt + retryNote }]
-        })
-        const content = response.content[0]
-        if (content.type === 'text') {
-          const clean = content.text.replace(/```json|```/g, '').trim()
-          const parsed = JSON.parse(clean)
-          quotesToSend = parsed.quotes || []
-        }
-        if (quotesToSend.length === quoteCount) break
-      } catch (err: any) {
-        console.error('Claude error for user', setting.user_id, ':', err?.message || err)
-        break
+    try {
+      const response = await anthropic.messages.create({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 2000,
+        messages: [{ role: 'user', content: basePrompt }]
+      })
+      const content = response.content[0]
+      if (content.type === 'text') {
+        const clean = content.text.replace(/```json|```/g, '').trim()
+        const parsed = JSON.parse(clean)
+        quotesToSend = parsed.quotes || []
+        recommendation = parsed.recommendation || null
       }
+    } catch (err: any) {
+      console.error('Claude error for user', setting.user_id, ':', err?.message || err)
+      continue
     }
 
     if (quotesToSend.length === 0) continue
 
-    // Build email HTML
     const emailSubject = isZh ? '📖 你今天的書摘來了' : '📖 Your ShuDrop for today'
+    const needsMoreNote = quotesToSend.length < quoteCount
+
     const emailHtml = `
 <!DOCTYPE html>
 <html>
@@ -134,6 +132,12 @@ Return ONLY valid JSON in this format:
     .quote-text { font-size: 17px; font-style: italic; color: #292524; line-height: 1.7; margin-bottom: 12px; }
     .quote-meta { font-size: 12px; color: #a8a29e; font-family: sans-serif; display: flex; justify-content: space-between; align-items: center; }
     .source-badge { background: #f5f5f4; padding: 2px 8px; border-radius: 99px; font-size: 11px; }
+    .more-note { background: #f5f5f4; border-radius: 12px; padding: 16px 20px; margin-bottom: 16px; font-family: sans-serif; font-size: 13px; color: #78716c; }
+    .more-note a { color: #1c1917; }
+    .rec-block { border-top: 1px solid #e7e5e4; margin-top: 32px; padding-top: 24px; font-family: sans-serif; }
+    .rec-label { font-size: 11px; color: #a8a29e; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+    .rec-title { font-size: 15px; font-weight: bold; color: #1c1917; margin-bottom: 4px; }
+    .rec-reason { font-size: 13px; color: #78716c; line-height: 1.6; }
     .footer { text-align: center; font-size: 12px; color: #a8a29e; margin-top: 40px; font-family: sans-serif; }
     .footer a { color: #78716c; }
   </style>
@@ -152,6 +156,20 @@ Return ONLY valid JSON in this format:
       </div>
     </div>`).join('')}
 
+    ${needsMoreNote ? `
+    <div class="more-note">
+      ${isZh
+        ? `想要更多書摘？<a href="https://shushubookbook.vercel.app/dashboard">加入更多個人畫線</a>，讓每次的書摘更豐富。`
+        : `Want more quotes? <a href="https://shushubookbook.vercel.app/dashboard">Add highlights from your books</a> to fill your drop.`}
+    </div>` : ''}
+
+    ${recommendation ? `
+    <div class="rec-block">
+      <div class="rec-label">${isZh ? 'ShuDrop 為你推薦' : 'ShuDrop suggests'}</div>
+      <div class="rec-title"><em>${recommendation.title}</em>${recommendation.author ? ` — ${recommendation.author}` : ''}</div>
+      <div class="rec-reason">${recommendation.reason}</div>
+    </div>` : ''}
+
     <div class="footer">
       ${isZh ? '由 AI 策展 · ' : 'Curated by AI · '}
       <a href="https://shushubookbook.vercel.app/dashboard">${isZh ? '管理設定' : 'Manage settings'}</a>
@@ -168,7 +186,6 @@ Return ONLY valid JSON in this format:
         html: emailHtml,
       })
 
-      // Update last_sent_at and store sent quote texts for future deduplication
       const newTexts = quotesToSend.map((q: any) => q.text)
       const updatedTexts = [...newTexts, ...recentTexts].slice(0, 20)
       const { error: updateError } = await supabase.from('user_settings').update({
