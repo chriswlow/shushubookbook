@@ -11,6 +11,62 @@ type Book = { id: string; title: string; author: string; cover_url?: string; cre
 type Quote = { id: string; text: string; page_number?: number; source: string; book_id: string; books?: { title: string } }
 type Tab = 'books' | 'quotes' | 'settings'
 
+function BookCombobox({ books, value, onChange, placeholder }: {
+  books: Book[]
+  value: string
+  onChange: (id: string) => void
+  placeholder: string
+}) {
+  const [search, setSearch] = useState('')
+  const [open, setOpen] = useState(false)
+  const selected = books.find(b => b.id === value)
+
+  const filtered = books.filter(b =>
+    !search ||
+    b.title.toLowerCase().includes(search.toLowerCase()) ||
+    b.author?.toLowerCase().includes(search.toLowerCase())
+  )
+
+  return (
+    <div className="relative">
+      <input
+        value={open ? search : (selected?.title ?? '')}
+        onChange={e => { setSearch(e.target.value); setOpen(true) }}
+        onFocus={() => { setSearch(''); setOpen(true) }}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        placeholder={placeholder}
+        className="input pr-8"
+        autoComplete="off"
+      />
+      {selected && (
+        <button
+          type="button"
+          onMouseDown={e => { e.preventDefault(); onChange(''); setSearch('') }}
+          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 text-xs px-1"
+        >✕</button>
+      )}
+      {open && (
+        <div className="absolute z-20 left-0 right-0 top-full mt-1 bg-white border border-stone-200 rounded-xl shadow-lg overflow-hidden max-h-52 overflow-y-auto">
+          {filtered.slice(0, 10).map(book => (
+            <button
+              key={book.id}
+              type="button"
+              onMouseDown={() => { onChange(book.id); setSearch(''); setOpen(false) }}
+              className="w-full text-left px-3 py-2.5 hover:bg-stone-50 transition-colors border-b border-stone-100 last:border-0"
+            >
+              <span className="text-sm font-medium text-stone-800">{book.title}</span>
+              {book.author && <span className="text-xs text-stone-400 ml-2">{book.author}</span>}
+            </button>
+          ))}
+          {filtered.length === 0 && (
+            <div className="px-3 py-2.5 text-sm text-stone-400">No books found</div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function DashboardPage() {
   const router = useRouter()
   const supabase = createClient()
@@ -422,10 +478,12 @@ export default function DashboardPage() {
               <form onSubmit={handleAddQuote} className="card mb-4 space-y-3">
                 <div>
                   <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-1.5">{t.dashboard.selectBook}</label>
-                  <select value={quoteBookId} onChange={e => setQuoteBookId(e.target.value)} className="input" required>
-                    <option value="">— {t.dashboard.selectBook} —</option>
-                    {books.map(b => <option key={b.id} value={b.id}>{b.title}</option>)}
-                  </select>
+                  <BookCombobox
+                    books={books}
+                    value={quoteBookId}
+                    onChange={setQuoteBookId}
+                    placeholder={`— ${t.dashboard.selectBook} —`}
+                  />
                 </div>
                 <div>
                   <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-1.5">{t.dashboard.quoteText}</label>
@@ -474,13 +532,12 @@ export default function DashboardPage() {
             {/* Filter by book */}
             {books.length > 0 && (
               <div className="mb-4">
-                <select value={quoteFilterBookId} onChange={e => setQuoteFilterBookId(e.target.value)} className="input">
-                  <option value="">{t.dashboard.allBooks}</option>
-                  {books.map(b => {
-                    const count = quotes.filter(q => q.book_id === b.id).length
-                    return <option key={b.id} value={b.id}>{b.title}{count > 0 ? ` (${count})` : ''}</option>
-                  })}
-                </select>
+                <BookCombobox
+                  books={books}
+                  value={quoteFilterBookId}
+                  onChange={setQuoteFilterBookId}
+                  placeholder={t.dashboard.allBooks}
+                />
               </div>
             )}
 
