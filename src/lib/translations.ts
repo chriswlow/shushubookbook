@@ -98,6 +98,11 @@ export const translations = {
       confirmDeleteQuote: 'Remove this quote?',
       deleteQuote: 'Remove',
       allBooks: 'All books',
+      quotesFound: 'quotes found',
+      reviewBeforeImport: 'review and edit before importing',
+      selectAll: 'Select all',
+      deselectAll: 'Deselect all',
+      importQuotes: 'Import',
     }
   },
   zh: {
@@ -199,6 +204,11 @@ export const translations = {
       confirmDeleteQuote: '刪除這則書摘？',
       deleteQuote: '刪除',
       allBooks: '所有書籍',
+      quotesFound: '則書摘已找到',
+      reviewBeforeImport: '匯入前請確認並編輯',
+      selectAll: '全選',
+      deselectAll: '取消全選',
+      importQuotes: '匯入',
     }
   }
 }
