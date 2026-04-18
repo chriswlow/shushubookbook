@@ -12,6 +12,7 @@
     "@anthropic-ai/sdk": "^0.39.0",
     "@supabase/ssr": "^0.1.0",
     "@supabase/supabase-js": "^2.39.0",
+    "mammoth": "^1.12.0",
     "next": "14.2.0",
     "nodemailer": "^8.0.5",
     "react": "^18",
