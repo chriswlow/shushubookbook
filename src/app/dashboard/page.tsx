@@ -93,6 +93,8 @@ export default function DashboardPage() {
   const [uploadBookId, setUploadBookId] = useState('')
   const [uploadAiLoading, setUploadAiLoading] = useState(false)
   const [uploadAiCount, setUploadAiCount] = useState<number | null>(null)
+  const [uploadParsedQuotes, setUploadParsedQuotes] = useState<{ id: string; text: string; page: number | null; selected: boolean }[]>([])
+  const [uploadConfirming, setUploadConfirming] = useState(false)
   const [deletingQuoteId, setDeletingQuoteId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [bookConfirmation, setBookConfirmation] = useState<{ found: boolean; title: string; author: string; description: string; cover_url?: string } | null>(null)
@@ -286,27 +288,35 @@ export default function DashboardPage() {
         body: JSON.stringify({ text }),
       })
       const data = await res.json()
-      if (data.quotes?.length > 0) {
-        const inserts = data.quotes.map((q: { text: string; page?: number }) => ({
-          text: q.text,
-          page_number: q.page ?? null,
-          user_id: user.id,
-          book_id: uploadBookId,
-          source: 'upload',
-        }))
-        await supabase.from('quotes').insert(inserts)
-        setUploadAiCount(inserts.length)
-      }
+      const rawQuotes: { text: string; page?: number }[] = data.quotes?.length > 0
+        ? data.quotes
+        : text.split('\n').filter((l: string) => l.trim().length > 20).map((l: string) => ({ text: l.trim() }))
+      setUploadParsedQuotes(rawQuotes.map((q, i) => ({ id: String(i), text: q.text, page: q.page ?? null, selected: true })))
+      setUploadConfirming(true)
     } catch {
       const lines = text.split('\n').filter(l => l.trim().length > 20)
-      const inserts = lines.map(line => ({ text: line.trim(), user_id: user.id, book_id: uploadBookId, source: 'upload' }))
-      if (inserts.length > 0) {
-        await supabase.from('quotes').insert(inserts)
-        setUploadAiCount(inserts.length)
-      }
+      setUploadParsedQuotes(lines.map((l, i) => ({ id: String(i), text: l.trim(), page: null, selected: true })))
+      setUploadConfirming(true)
     }
-    await fetchData(user.id)
     setUploadAiLoading(false)
+  }
+
+  const handleConfirmUpload = async () => {
+    const toSave = uploadParsedQuotes.filter(q => q.selected && q.text.trim())
+    if (toSave.length === 0) return
+    setSaving(true)
+    await supabase.from('quotes').insert(toSave.map(q => ({
+      text: q.text.trim(),
+      page_number: q.page,
+      user_id: user.id,
+      book_id: uploadBookId,
+      source: 'upload',
+    })))
+    setUploadAiCount(toSave.length)
+    setUploadParsedQuotes([])
+    setUploadConfirming(false)
+    await fetchData(user.id)
+    setSaving(false)
   }
 
   if (loading) return (
@@ -489,23 +499,75 @@ export default function DashboardPage() {
               <div className="card mb-4">
                 <p className="text-xs text-stone-400 mb-3">{t.dashboard.uploadHighlightsHint}</p>
                 {books.length > 0 ? (
-                  <>
-                    <select value={uploadBookId} onChange={e => setUploadBookId(e.target.value)} className="input mb-3">
-                      <option value="">— {t.dashboard.selectBook} —</option>
-                      {books.map(b => <option key={b.id} value={b.id}>{b.title}</option>)}
-                    </select>
-                    <label className={`block border-2 border-dashed rounded-xl p-6 text-center text-sm transition-colors ${
-                      uploadBookId && !uploadAiLoading
-                        ? 'border-stone-300 text-stone-500 cursor-pointer hover:border-stone-500'
-                        : 'border-stone-200 text-stone-300 cursor-not-allowed'
-                    }`}>
-                      {uploadAiLoading ? t.dashboard.parsingHighlights : t.dashboard.dragDrop}
-                      <input type="file" accept=".txt,.docx" onChange={handleUpload} className="hidden" disabled={!uploadBookId || uploadAiLoading} />
-                    </label>
-                    {uploadAiCount !== null && (
-                      <p className="text-sm text-emerald-600 mt-2">✓ {uploadAiCount} {t.dashboard.quotesImported}</p>
-                    )}
-                  </>
+                  uploadConfirming ? (
+                    /* Review step */
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <p className="text-sm font-medium text-stone-700">
+                          {uploadParsedQuotes.length} {t.dashboard.quotesFound} — {t.dashboard.reviewBeforeImport}
+                        </p>
+                        <div className="flex gap-3 text-xs text-stone-500">
+                          <button type="button" onClick={() => setUploadParsedQuotes(q => q.map(x => ({ ...x, selected: true })))} className="hover:text-stone-800">{t.dashboard.selectAll}</button>
+                          <button type="button" onClick={() => setUploadParsedQuotes(q => q.map(x => ({ ...x, selected: false })))} className="hover:text-stone-800">{t.dashboard.deselectAll}</button>
+                        </div>
+                      </div>
+                      <div className="space-y-2 max-h-96 overflow-y-auto pr-1 mb-4">
+                        {uploadParsedQuotes.map((q) => (
+                          <div key={q.id} className={`flex gap-3 p-3 rounded-xl border transition-colors ${q.selected ? 'border-stone-200 bg-white' : 'border-stone-100 bg-stone-50 opacity-50'}`}>
+                            <input
+                              type="checkbox"
+                              checked={q.selected}
+                              onChange={() => setUploadParsedQuotes(prev => prev.map(x => x.id === q.id ? { ...x, selected: !x.selected } : x))}
+                              className="mt-1 flex-shrink-0 accent-stone-900"
+                            />
+                            <div className="flex-1 min-w-0 space-y-1.5">
+                              <textarea
+                                value={q.text}
+                                onChange={e => setUploadParsedQuotes(prev => prev.map(x => x.id === q.id ? { ...x, text: e.target.value } : x))}
+                                className="w-full text-sm text-stone-800 font-serif italic bg-transparent border-0 outline-none resize-none leading-relaxed focus:bg-stone-50 focus:px-2 focus:rounded-lg transition-all"
+                                rows={Math.max(2, Math.ceil(q.text.length / 80))}
+                              />
+                              {q.page && <p className="text-xs text-stone-400">p.{q.page}</p>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={handleConfirmUpload}
+                          disabled={saving || uploadParsedQuotes.filter(q => q.selected).length === 0}
+                          className="btn-primary text-sm px-4 py-2"
+                        >
+                          {saving ? '...' : `${t.dashboard.importQuotes} ${uploadParsedQuotes.filter(q => q.selected).length}`}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setUploadConfirming(false); setUploadParsedQuotes([]) }}
+                          className="text-sm text-stone-500 hover:text-stone-800 transition-colors"
+                        >{t.dashboard.cancel}</button>
+                      </div>
+                    </div>
+                  ) : (
+                    /* File picker step */
+                    <>
+                      <select value={uploadBookId} onChange={e => setUploadBookId(e.target.value)} className="input mb-3">
+                        <option value="">— {t.dashboard.selectBook} —</option>
+                        {books.map(b => <option key={b.id} value={b.id}>{b.title}</option>)}
+                      </select>
+                      <label className={`block border-2 border-dashed rounded-xl p-6 text-center text-sm transition-colors ${
+                        uploadBookId && !uploadAiLoading
+                          ? 'border-stone-300 text-stone-500 cursor-pointer hover:border-stone-500'
+                          : 'border-stone-200 text-stone-300 cursor-not-allowed'
+                      }`}>
+                        {uploadAiLoading ? t.dashboard.parsingHighlights : t.dashboard.dragDrop}
+                        <input type="file" accept=".txt,.docx" onChange={handleUpload} className="hidden" disabled={!uploadBookId || uploadAiLoading} />
+                      </label>
+                      {uploadAiCount !== null && (
+                        <p className="text-sm text-emerald-600 mt-2">✓ {uploadAiCount} {t.dashboard.quotesImported}</p>
+                      )}
+                    </>
+                  )
                 ) : (
                   <p className="text-sm text-stone-400">{t.dashboard.addBooksFirst}</p>
                 )}
