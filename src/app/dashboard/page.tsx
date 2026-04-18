@@ -551,10 +551,14 @@ export default function DashboardPage() {
                   ) : (
                     /* File picker step */
                     <>
-                      <select value={uploadBookId} onChange={e => setUploadBookId(e.target.value)} className="input mb-3">
-                        <option value="">— {t.dashboard.selectBook} —</option>
-                        {books.map(b => <option key={b.id} value={b.id}>{b.title}</option>)}
-                      </select>
+                      <div className="mb-3">
+                        <BookCombobox
+                          books={books}
+                          value={uploadBookId}
+                          onChange={setUploadBookId}
+                          placeholder={`— ${t.dashboard.selectBook} —`}
+                        />
+                      </div>
                       <label className={`block border-2 border-dashed rounded-xl p-6 text-center text-sm transition-colors ${
                         uploadBookId && !uploadAiLoading
                           ? 'border-stone-300 text-stone-500 cursor-pointer hover:border-stone-500'
