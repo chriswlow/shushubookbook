@@ -79,6 +79,7 @@ ${userQuotesText}${avoidSection}
 步驟 1：優先列入用戶的所有個人畫線。
 步驟 2：對每一本書，搜尋 Goodreads、Reddit 或書評網站上的「[書名] site:goodreads.com/quotes」，找出最受讀者喜愛的句子，補充至 ${quoteCount} 句為止。
 重要：若某本書有中文版（繁體或簡體），請直接引用中文版原文。只有在該書確實沒有中文版時，才可使用英文原文。
+多樣性原則：盡量讓書摘來自不同的書，每本書最多選 1 句。只有在書的數量不足以填滿 ${quoteCount} 句時，才可從同一本書選多句。
 
 任務二——選書推薦：根據用戶的書單，推薦一本他們尚未讀過、但可能會喜歡的書，附上一句推薦理由。
 
@@ -91,6 +92,7 @@ Task 1 — Quotes: Return up to ${quoteCount} quotes total.
 Step 1: Include ALL of the user's personal highlights listed above.
 Step 2: For each book, search Goodreads, Reddit, or book review sites — e.g. search "site:goodreads.com/quotes [book title]". Pick the most upvoted/loved quotes to fill remaining slots up to ${quoteCount}.
 Only include quotes found via search or certain to be verbatim from the book.
+Diversity rule: Spread quotes across as many different books as possible — ideally no more than 1 quote per book. Only pick multiple quotes from the same book if there are not enough books to fill all ${quoteCount} slots.
 
 Task 2 — Book recommendation: Based on the user's reading list, recommend ONE book they haven't read yet that they'd likely enjoy. Give a one-sentence reason.
 

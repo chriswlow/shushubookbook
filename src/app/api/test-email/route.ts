@@ -59,6 +59,7 @@ ${userQuotesText}
 
 任務一——書摘：最多選 ${quoteCount} 句書摘。優先使用用戶的個人畫線，盡量多包含。若需補充，只能引用你 100% 確定是原文、確實出現在書中的句子——若不確定，寧可少選也不要捏造。
 重要：如果某本書有中文版（繁體或簡體），請直接引用中文版的原文。只有在該書確實沒有中文版時，才可使用英文原文。
+多樣性原則：盡量讓書摘來自不同的書，每本書最多選 1 句。只有在書的數量不足以填滿 ${quoteCount} 句時，才可從同一本書選多句。
 
 任務二——選書推薦：根據用戶的書單，推薦一本他們尚未讀過、但可能會喜歡的書，附上一句推薦理由。
 
@@ -68,6 +69,7 @@ ${userQuotesText}
 ${userQuotesText}
 
 Task 1 — Quotes: Return up to ${quoteCount} quotes. Always include personal highlights first. For remaining slots, only include verbatim quotes you are 100% certain appear in these books — if unsure, skip the slot rather than risk fabricating. Return as many as you're confident about, up to ${quoteCount}.
+Diversity rule: Spread quotes across as many different books as possible — ideally no more than 1 quote per book. Only pick multiple quotes from the same book if there are not enough books to fill all ${quoteCount} slots.
 
 Task 2 — Book recommendation: Based on the user's reading list, recommend ONE book they haven't read yet that they'd likely enjoy. Give a one-sentence reason.
 
