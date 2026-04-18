@@ -31,7 +31,7 @@ export default function DashboardPage() {
   const [quoteText, setQuoteText] = useState('')
   const [quotePage, setQuotePage] = useState('')
   const [quoteBookId, setQuoteBookId] = useState('')
-  const [quoteBookSearch, setQuoteBookSearch] = useState('')
+  const [quoteFilterBookId, setQuoteFilterBookId] = useState('')
   const [quoteSaved, setQuoteSaved] = useState(false)
   const [uploadBookId, setUploadBookId] = useState('')
   const [uploadAiLoading, setUploadAiLoading] = useState(false)
@@ -422,57 +422,10 @@ export default function DashboardPage() {
               <form onSubmit={handleAddQuote} className="card mb-4 space-y-3">
                 <div>
                   <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-1.5">{t.dashboard.selectBook}</label>
-                  {quoteBookId ? (
-                    <div className="flex items-center justify-between px-3 py-2.5 bg-stone-100 rounded-xl">
-                      <div>
-                        <p className="text-sm font-medium text-stone-900">{books.find(b => b.id === quoteBookId)?.title}</p>
-                        {books.find(b => b.id === quoteBookId)?.author && (
-                          <p className="text-xs text-stone-400">{books.find(b => b.id === quoteBookId)?.author}</p>
-                        )}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => { setQuoteBookId(''); setQuoteBookSearch(''); }}
-                        className="text-xs text-stone-500 hover:text-stone-800 transition-colors"
-                      >
-                        {t.dashboard.changeBook}
-                      </button>
-                    </div>
-                  ) : books.length > 0 ? (
-                    <div>
-                      <input
-                        value={quoteBookSearch}
-                        onChange={e => setQuoteBookSearch(e.target.value)}
-                        placeholder={t.dashboard.searchBooks}
-                        className="input"
-                      />
-                      <div className="mt-1 border border-stone-200 rounded-xl overflow-hidden divide-y divide-stone-100">
-                        {books.filter(b =>
-                          !quoteBookSearch ||
-                          b.title.toLowerCase().includes(quoteBookSearch.toLowerCase()) ||
-                          b.author?.toLowerCase().includes(quoteBookSearch.toLowerCase())
-                        ).slice(0, 8).map(book => (
-                          <button
-                            key={book.id}
-                            type="button"
-                            onClick={() => { setQuoteBookId(book.id); setQuoteBookSearch(''); }}
-                            className="w-full text-left px-3 py-2.5 hover:bg-stone-50 transition-colors"
-                          >
-                            <span className="text-sm font-medium text-stone-800">{book.title}</span>
-                            {book.author && <span className="text-xs text-stone-400 ml-2">{book.author}</span>}
-                          </button>
-                        ))}
-                        {quoteBookSearch && books.filter(b =>
-                          b.title.toLowerCase().includes(quoteBookSearch.toLowerCase()) ||
-                          b.author?.toLowerCase().includes(quoteBookSearch.toLowerCase())
-                        ).length === 0 && (
-                          <div className="px-3 py-2.5 text-sm text-stone-400">{t.dashboard.noMatchingBooks}</div>
-                        )}
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-stone-400">{t.dashboard.addBooksFirst}</p>
-                  )}
+                  <select value={quoteBookId} onChange={e => setQuoteBookId(e.target.value)} className="input" required>
+                    <option value="">— {t.dashboard.selectBook} —</option>
+                    {books.map(b => <option key={b.id} value={b.id}>{b.title}</option>)}
+                  </select>
                 </div>
                 <div>
                   <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-1.5">{t.dashboard.quoteText}</label>
@@ -518,11 +471,24 @@ export default function DashboardPage() {
               )}
             </div>
 
+            {/* Filter by book */}
+            {books.length > 0 && (
+              <div className="mb-4">
+                <select value={quoteFilterBookId} onChange={e => setQuoteFilterBookId(e.target.value)} className="input">
+                  <option value="">{t.dashboard.allBooks}</option>
+                  {books.map(b => {
+                    const count = quotes.filter(q => q.book_id === b.id).length
+                    return <option key={b.id} value={b.id}>{b.title}{count > 0 ? ` (${count})` : ''}</option>
+                  })}
+                </select>
+              </div>
+            )}
+
             {quotes.length === 0 ? (
               <div className="card text-center text-stone-400 py-12">{t.dashboard.noQuotes}</div>
             ) : (
               <div className="space-y-3">
-                {quotes.map(quote => (
+                {quotes.filter(q => !quoteFilterBookId || q.book_id === quoteFilterBookId).map(quote => (
                   <div key={quote.id} className="card">
                     <div className="flex gap-2">
                       <p className="font-serif text-stone-800 italic leading-relaxed mb-3 flex-1">"{quote.text}"</p>

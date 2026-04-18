@@ -97,6 +97,7 @@ export const translations = {
       uploadHighlightsHint: 'AI-powered: we\'ll clean up formatting and extract your highlights automatically.',
       confirmDeleteQuote: 'Remove this quote?',
       deleteQuote: 'Remove',
+      allBooks: 'All books',
     }
   },
   zh: {
@@ -197,6 +198,7 @@ export const translations = {
       uploadHighlightsHint: 'AI 驅動：自動清理格式並提取你的畫線。',
       confirmDeleteQuote: '刪除這則書摘？',
       deleteQuote: '刪除',
+      allBooks: '所有書籍',
     }
   }
 }
