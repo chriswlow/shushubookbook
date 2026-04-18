@@ -75,8 +75,10 @@ export async function GET(req: Request) {
       ? `你是一個書摘策展人。用戶讀過這些書：${bookListText}。
 ${userQuotesText}${avoidSection}
 
-任務一——書摘：最多選 ${quoteCount} 句書摘。優先使用用戶的個人畫線，盡量多包含。若需補充，只能引用你 100% 確定是原文、確實出現在書中的句子——若不確定，寧可少選也不要捏造。
-重要：如果某本書有中文版（繁體或簡體），請直接引用中文版的原文。只有在該書確實沒有中文版時，才可使用英文原文。
+任務一——書摘：最多選 ${quoteCount} 句書摘。
+步驟 1：優先列入用戶的所有個人畫線。
+步驟 2：對每一本書，請使用網路搜尋，搜尋「[書名] 經典語錄」或「[書名] best quotes」，找出最受讀者喜愛、最具代表性的句子，補充至 ${quoteCount} 句為止。
+重要：若某本書有中文版（繁體或簡體），請直接引用中文版原文。只有在該書確實沒有中文版時，才可使用英文原文。
 
 任務二——選書推薦：根據用戶的書單，推薦一本他們尚未讀過、但可能會喜歡的書，附上一句推薦理由。
 
@@ -85,28 +87,63 @@ ${userQuotesText}${avoidSection}
       : `You are a thoughtful quote curator. The user has read these books: ${bookListText}.
 ${userQuotesText}${avoidSection}
 
-Task 1 — Quotes: Return up to ${quoteCount} quotes. Always include personal highlights first. For remaining slots, only include verbatim quotes you are 100% certain appear in these books — if unsure, skip the slot rather than risk fabricating. Return as many as you're confident about, up to ${quoteCount}.
+Task 1 — Quotes: Return up to ${quoteCount} quotes total.
+Step 1: Include ALL of the user's personal highlights listed above.
+Step 2: For each book in the user's list, use web search to find the most celebrated and widely shared quotes — search "[book title] best quotes" or "[book title] famous quotes". Use these to fill remaining slots up to ${quoteCount}, mixing them with personal highlights.
+Only include quotes you have found via search or are certain are verbatim from the book.
 
 Task 2 — Book recommendation: Based on the user's reading list, recommend ONE book they haven't read yet that they'd likely enjoy. Give a one-sentence reason.
 
 Return ONLY valid JSON:
 {"quotes": [{"text": "...", "book": "...", "author": "...", "source": "personal or ai"}], "recommendation": {"title": "...", "author": "...", "reason": "..."}}`
 
+    const webSearchTool = { type: 'web_search_20250305', name: 'web_search' } as any
+    const agentMessages: any[] = [{ role: 'user', content: basePrompt }]
+
     let quotesToSend: any[] = []
     let recommendation: any = null
 
     try {
-      const response = await anthropic.messages.create({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 2000,
-        messages: [{ role: 'user', content: basePrompt }]
-      })
-      const content = response.content[0]
-      if (content.type === 'text') {
-        const clean = content.text.replace(/```json|```/g, '').trim()
-        const parsed = JSON.parse(clean)
-        quotesToSend = parsed.quotes || []
-        recommendation = parsed.recommendation || null
+      for (let turn = 0; turn < 10; turn++) {
+        const response = await anthropic.messages.create({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 4000,
+          tools: [webSearchTool],
+          messages: agentMessages,
+        } as any)
+
+        const textBlock = response.content.find((b: any) => b.type === 'text')
+
+        if (response.stop_reason === 'end_turn' || (response.stop_reason !== 'tool_use' && textBlock)) {
+          if (textBlock && textBlock.type === 'text') {
+            const jsonMatch = textBlock.text.match(/\{[\s\S]*\}/)
+            if (jsonMatch) {
+              const parsed = JSON.parse(jsonMatch[0])
+              quotesToSend = parsed.quotes || []
+              recommendation = parsed.recommendation || null
+            }
+          }
+          break
+        }
+
+        if (response.stop_reason === 'tool_use') {
+          agentMessages.push({ role: 'assistant', content: response.content })
+          const toolUseBlocks = response.content.filter((b: any) => b.type === 'tool_use')
+          const toolResults = toolUseBlocks.map((b: any) => {
+            const matchingResult = response.content.find(
+              (r: any) => (r.type === 'web_search_result' || r.type === 'tool_result') && r.tool_use_id === b.id
+            )
+            return {
+              type: 'tool_result',
+              tool_use_id: b.id,
+              content: matchingResult ? [matchingResult] : 'Search executed.',
+            }
+          })
+          agentMessages.push({ role: 'user', content: toolResults })
+          continue
+        }
+
+        break
       }
     } catch (err: any) {
       console.error('Claude error for user', setting.user_id, ':', err?.message || err)
