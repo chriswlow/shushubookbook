@@ -265,7 +265,15 @@ export default function DashboardPage() {
     if (!file || !uploadBookId) return
     setUploadAiLoading(true)
     setUploadAiCount(null)
-    const text = await file.text()
+
+    let text: string
+    if (file.name.endsWith('.docx')) {
+      const mammoth = (await import('mammoth')).default
+      const result = await mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() })
+      text = result.value
+    } else {
+      text = await file.text()
+    }
     const { data: { session } } = await supabase.auth.getSession()
 
     try {
@@ -468,8 +476,8 @@ export default function DashboardPage() {
               <h2 className="font-serif text-xl font-bold text-stone-800">{t.dashboard.quotes}</h2>
               <button
                 onClick={() => setShowUpload(v => !v)}
-                className={`text-sm px-4 py-2 rounded-lg border transition-colors ${
-                  showUpload ? 'bg-stone-100 border-stone-300 text-stone-700' : 'border-stone-200 text-stone-500 hover:border-stone-400 hover:text-stone-700'
+                className={`text-sm px-4 py-2 rounded-full font-medium transition-all border ${
+                  showUpload ? 'bg-stone-900 text-white border-stone-900' : 'border-stone-200 text-stone-600 hover:border-stone-400'
                 }`}
               >
                 {t.dashboard.uploadGooglePlayTitle}
@@ -492,7 +500,7 @@ export default function DashboardPage() {
                         : 'border-stone-200 text-stone-300 cursor-not-allowed'
                     }`}>
                       {uploadAiLoading ? t.dashboard.parsingHighlights : t.dashboard.dragDrop}
-                      <input type="file" accept=".txt" onChange={handleUpload} className="hidden" disabled={!uploadBookId || uploadAiLoading} />
+                      <input type="file" accept=".txt,.docx" onChange={handleUpload} className="hidden" disabled={!uploadBookId || uploadAiLoading} />
                     </label>
                     {uploadAiCount !== null && (
                       <p className="text-sm text-emerald-600 mt-2">✓ {uploadAiCount} {t.dashboard.quotesImported}</p>
