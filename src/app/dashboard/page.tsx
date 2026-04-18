@@ -36,6 +36,7 @@ export default function DashboardPage() {
   const [uploadBookId, setUploadBookId] = useState('')
   const [uploadAiLoading, setUploadAiLoading] = useState(false)
   const [uploadAiCount, setUploadAiCount] = useState<number | null>(null)
+  const [deletingQuoteId, setDeletingQuoteId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [bookConfirmation, setBookConfirmation] = useState<{ found: boolean; title: string; author: string; description: string; cover_url?: string } | null>(null)
   const [confirmingBook, setConfirmingBook] = useState(false)
@@ -132,6 +133,12 @@ export default function DashboardPage() {
   const handleDeleteBook = async (bookId: string) => {
     await supabase.from('books').delete().eq('id', bookId)
     setDeletingBookId(null)
+    await fetchData(user.id)
+  }
+
+  const handleDeleteQuote = async (quoteId: string) => {
+    await supabase.from('quotes').delete().eq('id', quoteId)
+    setDeletingQuoteId(null)
     await fetchData(user.id)
   }
 
@@ -517,7 +524,14 @@ export default function DashboardPage() {
               <div className="space-y-3">
                 {quotes.map(quote => (
                   <div key={quote.id} className="card">
-                    <p className="font-serif text-stone-800 italic leading-relaxed mb-3">"{quote.text}"</p>
+                    <div className="flex gap-2">
+                      <p className="font-serif text-stone-800 italic leading-relaxed mb-3 flex-1">"{quote.text}"</p>
+                      <button
+                        onClick={() => setDeletingQuoteId(deletingQuoteId === quote.id ? null : quote.id)}
+                        className="text-stone-300 hover:text-red-400 transition-colors flex-shrink-0 self-start text-base leading-none"
+                        aria-label="Remove quote"
+                      >✕</button>
+                    </div>
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-stone-400">
                         {quote.books?.title}{quote.page_number ? ` · p.${quote.page_number}` : ''}
@@ -526,6 +540,19 @@ export default function DashboardPage() {
                         {t.dashboard.source[quote.source as keyof typeof t.dashboard.source] || quote.source}
                       </span>
                     </div>
+                    {deletingQuoteId === quote.id && (
+                      <div className="mt-3 p-3 bg-red-50 border border-red-100 rounded-xl space-y-2">
+                        <p className="text-xs text-red-700">{t.dashboard.confirmDeleteQuote}</p>
+                        <div className="flex gap-2">
+                          <button onClick={() => handleDeleteQuote(quote.id)} className="text-xs px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+                            {t.dashboard.deleteQuote}
+                          </button>
+                          <button onClick={() => setDeletingQuoteId(null)} className="text-xs px-3 py-1.5 border border-stone-200 text-stone-600 rounded-lg hover:border-stone-400 transition-colors">
+                            {t.dashboard.cancel}
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

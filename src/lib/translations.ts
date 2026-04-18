@@ -95,6 +95,8 @@ export const translations = {
       addBooksFirst: 'Add books first before adding quotes.',
       uploadGooglePlayTitle: 'Upload Google Play Highlights',
       uploadHighlightsHint: 'AI-powered: we\'ll clean up formatting and extract your highlights automatically.',
+      confirmDeleteQuote: 'Remove this quote?',
+      deleteQuote: 'Remove',
     }
   },
   zh: {
@@ -193,6 +195,8 @@ export const translations = {
       addBooksFirst: '請先新增書籍再新增書摘。',
       uploadGooglePlayTitle: '上傳 Google Play 畫線',
       uploadHighlightsHint: 'AI 驅動：自動清理格式並提取你的畫線。',
+      confirmDeleteQuote: '刪除這則書摘？',
+      deleteQuote: '刪除',
     }
   }
 }
