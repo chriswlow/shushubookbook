@@ -18,19 +18,24 @@ export default function DashboardPage() {
   const t = translations[lang]
 
   const [user, setUser] = useState<any>(null)
-  const [tab, setTab] = useState<Tab>('books')
+  const [tab, setTab] = useState<Tab>('quotes')
   const [books, setBooks] = useState<Book[]>([])
   const [quotes, setQuotes] = useState<Quote[]>([])
   const [loading, setLoading] = useState(true)
 
   // Forms
   const [showAddBook, setShowAddBook] = useState(false)
-  const [showAddQuote, setShowAddQuote] = useState(false)
+  const [showAddQuote, setShowAddQuote] = useState(true)
   const [bookTitle, setBookTitle] = useState('')
   const [bookAuthor, setBookAuthor] = useState('')
   const [quoteText, setQuoteText] = useState('')
   const [quotePage, setQuotePage] = useState('')
   const [quoteBookId, setQuoteBookId] = useState('')
+  const [quoteBookSearch, setQuoteBookSearch] = useState('')
+  const [quoteSaved, setQuoteSaved] = useState(false)
+  const [uploadBookId, setUploadBookId] = useState('')
+  const [uploadAiLoading, setUploadAiLoading] = useState(false)
+  const [uploadAiCount, setUploadAiCount] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
   const [bookConfirmation, setBookConfirmation] = useState<{ found: boolean; title: string; author: string; description: string; cover_url?: string } | null>(null)
   const [confirmingBook, setConfirmingBook] = useState(false)
@@ -140,7 +145,10 @@ export default function DashboardPage() {
       user_id: user.id,
       source: 'manual'
     })
-    setQuoteText(''); setQuotePage(''); setQuoteBookId(''); setShowAddQuote(false)
+    setQuoteText('')
+    setQuotePage('')
+    setQuoteSaved(true)
+    setTimeout(() => setQuoteSaved(false), 2000)
     await fetchData(user.id)
     setSaving(false)
   }
@@ -190,12 +198,43 @@ export default function DashboardPage() {
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (!file || !quoteBookId) return
+    if (!file || !uploadBookId) return
+    setUploadAiLoading(true)
+    setUploadAiCount(null)
     const text = await file.text()
-    const lines = text.split('\n').filter(l => l.trim().length > 20)
-    const inserts = lines.map(line => ({ text: line.trim(), user_id: user.id, book_id: quoteBookId, source: 'upload' }))
-    await supabase.from('quotes').insert(inserts)
+    const { data: { session } } = await supabase.auth.getSession()
+
+    try {
+      const res = await fetch('/api/parse-highlights', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({ text }),
+      })
+      const data = await res.json()
+      if (data.quotes?.length > 0) {
+        const inserts = data.quotes.map((q: { text: string; page?: number }) => ({
+          text: q.text,
+          page_number: q.page ?? null,
+          user_id: user.id,
+          book_id: uploadBookId,
+          source: 'upload',
+        }))
+        await supabase.from('quotes').insert(inserts)
+        setUploadAiCount(inserts.length)
+      }
+    } catch {
+      const lines = text.split('\n').filter(l => l.trim().length > 20)
+      const inserts = lines.map(line => ({ text: line.trim(), user_id: user.id, book_id: uploadBookId, source: 'upload' }))
+      if (inserts.length > 0) {
+        await supabase.from('quotes').insert(inserts)
+        setUploadAiCount(inserts.length)
+      }
+    }
     await fetchData(user.id)
+    setUploadAiLoading(false)
   }
 
   if (loading) return (
@@ -363,19 +402,70 @@ export default function DashboardPage() {
           <div>
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-serif text-xl font-bold text-stone-800">{t.dashboard.quotes}</h2>
-              <button onClick={() => setShowAddQuote(!showAddQuote)} className="btn-primary text-sm px-4 py-2">
-                + {t.dashboard.addQuote}
+              <button
+                onClick={() => setShowAddQuote(!showAddQuote)}
+                className="text-sm text-stone-500 hover:text-stone-800 transition-colors"
+              >
+                {showAddQuote ? t.dashboard.hideForm : `+ ${t.dashboard.addQuote}`}
               </button>
             </div>
 
+            {/* Add Quote Form — shown by default */}
             {showAddQuote && (
               <form onSubmit={handleAddQuote} className="card mb-4 space-y-3">
                 <div>
                   <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-1.5">{t.dashboard.selectBook}</label>
-                  <select value={quoteBookId} onChange={e => setQuoteBookId(e.target.value)} className="input" required>
-                    <option value="">— {t.dashboard.selectBook} —</option>
-                    {books.map(b => <option key={b.id} value={b.id}>{b.title}</option>)}
-                  </select>
+                  {quoteBookId ? (
+                    <div className="flex items-center justify-between px-3 py-2.5 bg-stone-100 rounded-xl">
+                      <div>
+                        <p className="text-sm font-medium text-stone-900">{books.find(b => b.id === quoteBookId)?.title}</p>
+                        {books.find(b => b.id === quoteBookId)?.author && (
+                          <p className="text-xs text-stone-400">{books.find(b => b.id === quoteBookId)?.author}</p>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => { setQuoteBookId(''); setQuoteBookSearch(''); }}
+                        className="text-xs text-stone-500 hover:text-stone-800 transition-colors"
+                      >
+                        {t.dashboard.changeBook}
+                      </button>
+                    </div>
+                  ) : books.length > 0 ? (
+                    <div>
+                      <input
+                        value={quoteBookSearch}
+                        onChange={e => setQuoteBookSearch(e.target.value)}
+                        placeholder={t.dashboard.searchBooks}
+                        className="input"
+                      />
+                      <div className="mt-1 border border-stone-200 rounded-xl overflow-hidden divide-y divide-stone-100">
+                        {books.filter(b =>
+                          !quoteBookSearch ||
+                          b.title.toLowerCase().includes(quoteBookSearch.toLowerCase()) ||
+                          b.author?.toLowerCase().includes(quoteBookSearch.toLowerCase())
+                        ).slice(0, 8).map(book => (
+                          <button
+                            key={book.id}
+                            type="button"
+                            onClick={() => { setQuoteBookId(book.id); setQuoteBookSearch(''); }}
+                            className="w-full text-left px-3 py-2.5 hover:bg-stone-50 transition-colors"
+                          >
+                            <span className="text-sm font-medium text-stone-800">{book.title}</span>
+                            {book.author && <span className="text-xs text-stone-400 ml-2">{book.author}</span>}
+                          </button>
+                        ))}
+                        {quoteBookSearch && books.filter(b =>
+                          b.title.toLowerCase().includes(quoteBookSearch.toLowerCase()) ||
+                          b.author?.toLowerCase().includes(quoteBookSearch.toLowerCase())
+                        ).length === 0 && (
+                          <div className="px-3 py-2.5 text-sm text-stone-400">{t.dashboard.noMatchingBooks}</div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-stone-400">{t.dashboard.addBooksFirst}</p>
+                  )}
                 </div>
                 <div>
                   <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-1.5">{t.dashboard.quoteText}</label>
@@ -385,27 +475,41 @@ export default function DashboardPage() {
                   <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-1.5">{t.dashboard.pageNumber}</label>
                   <input type="number" value={quotePage} onChange={e => setQuotePage(e.target.value)} className="input" />
                 </div>
-                <div className="flex gap-2">
-                  <button type="submit" disabled={saving} className="btn-primary text-sm px-4 py-2">{t.dashboard.save}</button>
-                  <button type="button" onClick={() => setShowAddQuote(false)} className="btn-secondary text-sm px-4 py-2">{t.dashboard.cancel}</button>
+                <div className="flex items-center gap-3">
+                  <button type="submit" disabled={saving || !quoteBookId} className="btn-primary text-sm px-4 py-2">
+                    {saving ? '...' : t.dashboard.save}
+                  </button>
+                  {quoteSaved && <span className="text-sm text-emerald-600 font-medium">✓ {t.dashboard.quoteSaved}</span>}
                 </div>
               </form>
             )}
 
-            {/* Upload section */}
-            {books.length > 0 && (
-              <div className="card mb-4">
-                <p className="text-sm font-medium text-stone-700 mb-3">{t.dashboard.uploadHighlights}</p>
-                <select value={quoteBookId} onChange={e => setQuoteBookId(e.target.value)} className="input mb-3">
-                  <option value="">— {t.dashboard.selectBook} —</option>
-                  {books.map(b => <option key={b.id} value={b.id}>{b.title}</option>)}
-                </select>
-                <label className="block border-2 border-dashed border-stone-200 rounded-xl p-6 text-center text-sm text-stone-400 cursor-pointer hover:border-stone-400 transition-colors">
-                  {t.dashboard.dragDrop}
-                  <input type="file" accept=".txt" onChange={handleUpload} className="hidden" />
-                </label>
-              </div>
-            )}
+            {/* Upload Google Play Highlights */}
+            <div className="card mb-6">
+              <p className="text-sm font-semibold text-stone-700 mb-0.5">{t.dashboard.uploadGooglePlayTitle}</p>
+              <p className="text-xs text-stone-400 mb-3">{t.dashboard.uploadHighlightsHint}</p>
+              {books.length > 0 ? (
+                <>
+                  <select value={uploadBookId} onChange={e => setUploadBookId(e.target.value)} className="input mb-3">
+                    <option value="">— {t.dashboard.selectBook} —</option>
+                    {books.map(b => <option key={b.id} value={b.id}>{b.title}</option>)}
+                  </select>
+                  <label className={`block border-2 border-dashed rounded-xl p-6 text-center text-sm transition-colors ${
+                    uploadBookId && !uploadAiLoading
+                      ? 'border-stone-300 text-stone-500 cursor-pointer hover:border-stone-500'
+                      : 'border-stone-200 text-stone-300 cursor-not-allowed'
+                  }`}>
+                    {uploadAiLoading ? t.dashboard.parsingHighlights : t.dashboard.dragDrop}
+                    <input type="file" accept=".txt" onChange={handleUpload} className="hidden" disabled={!uploadBookId || uploadAiLoading} />
+                  </label>
+                  {uploadAiCount !== null && (
+                    <p className="text-sm text-emerald-600 mt-2">✓ {uploadAiCount} {t.dashboard.quotesImported}</p>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-stone-400">{t.dashboard.addBooksFirst}</p>
+              )}
+            </div>
 
             {quotes.length === 0 ? (
               <div className="card text-center text-stone-400 py-12">{t.dashboard.noQuotes}</div>

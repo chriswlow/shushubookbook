@@ -85,6 +85,16 @@ export const translations = {
       pauseEmailsHint: 'No drops will be sent until you resume.',
       resumeEmails: 'Resume emails',
       emailsPaused: 'Emails paused',
+      searchBooks: 'Search your books...',
+      changeBook: 'Change',
+      quoteSaved: 'Saved!',
+      hideForm: 'Hide',
+      parsingHighlights: 'Parsing with AI...',
+      quotesImported: 'quotes imported',
+      noMatchingBooks: 'No books found',
+      addBooksFirst: 'Add books first before adding quotes.',
+      uploadGooglePlayTitle: 'Upload Google Play Highlights',
+      uploadHighlightsHint: 'AI-powered: we\'ll clean up formatting and extract your highlights automatically.',
     }
   },
   zh: {
@@ -173,6 +183,16 @@ export const translations = {
       pauseEmailsHint: '恢復前不會寄送任何書摘。',
       resumeEmails: '繼續寄送',
       emailsPaused: '已暫停寄送',
+      searchBooks: '搜尋書籍...',
+      changeBook: '更換',
+      quoteSaved: '已儲存！',
+      hideForm: '收起',
+      parsingHighlights: 'AI 解析中...',
+      quotesImported: '則書摘已匯入',
+      noMatchingBooks: '找不到書籍',
+      addBooksFirst: '請先新增書籍再新增書摘。',
+      uploadGooglePlayTitle: '上傳 Google Play 畫線',
+      uploadHighlightsHint: 'AI 驅動：自動清理格式並提取你的畫線。',
     }
   }
 }
