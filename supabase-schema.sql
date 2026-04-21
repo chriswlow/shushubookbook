@@ -52,3 +52,5 @@ alter table user_settings add column if not exists paused boolean default false;
 alter table user_settings add column if not exists quote_count integer default 4;
 alter table user_settings add column if not exists delivery_hour integer default 9;
 alter table user_settings add column if not exists recent_quote_texts text[] default '{}';
+alter table user_settings add column if not exists prepared_email_html text;
+alter table user_settings add column if not exists prepared_quote_texts text[] default '{}';

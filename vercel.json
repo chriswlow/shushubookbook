@@ -3,11 +3,15 @@
   "buildCommand": "npm run build",
   "outputDirectory": ".next",
   "functions": {
-    "src/app/api/send-quotes/route.ts": {
+    "src/app/api/prepare-quotes/route.ts": {
       "maxDuration": 300
     }
   },
   "crons": [
+    {
+      "path": "/api/prepare-quotes",
+      "schedule": "0 21 * * *"
+    },
     {
       "path": "/api/send-quotes",
       "schedule": "0 9 * * *"
