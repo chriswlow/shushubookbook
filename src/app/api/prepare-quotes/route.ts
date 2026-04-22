@@ -103,24 +103,35 @@ Return ONLY valid JSON:
     let recommendation: any = null
 
     try {
-      // Cap at 2 turns: one search round + one final answer
-      for (let turn = 0; turn < 2; turn++) {
+      const MAX_SEARCH_TURNS = 4
+      for (let turn = 0; turn <= MAX_SEARCH_TURNS; turn++) {
+        const isLastTurn = turn === MAX_SEARCH_TURNS
         const response = await anthropic.messages.create({
           model: 'claude-sonnet-4-6',
           max_tokens: 4000,
-          tools: [webSearchTool],
+          // On the last turn remove tools so Claude must return text
+          ...(isLastTurn ? {} : { tools: [webSearchTool] }),
           messages: agentMessages,
         } as any)
 
+        console.log(`User ${setting.user_id} turn ${turn}: stop_reason=${response.stop_reason} content_types=${response.content.map((b: any) => b.type).join(',')}`)
+
         const textBlock = response.content.find((b: any) => b.type === 'text')
 
-        if (response.stop_reason === 'end_turn' || (response.stop_reason !== 'tool_use' && textBlock)) {
+        if (response.stop_reason === 'end_turn' || textBlock) {
           if (textBlock && textBlock.type === 'text') {
-            const jsonMatch = textBlock.text.match(/\{[\s\S]*\}/)
-            if (jsonMatch) {
-              const parsed = JSON.parse(jsonMatch[0])
-              quotesToSend = parsed.quotes || []
-              recommendation = parsed.recommendation || null
+            try {
+              const jsonMatch = textBlock.text.match(/\{[\s\S]*\}/)
+              if (jsonMatch) {
+                const parsed = JSON.parse(jsonMatch[0])
+                quotesToSend = parsed.quotes || []
+                recommendation = parsed.recommendation || null
+                console.log(`User ${setting.user_id}: parsed ${quotesToSend.length} quotes`)
+              } else {
+                console.error(`User ${setting.user_id}: no JSON found in response`)
+              }
+            } catch (parseErr: any) {
+              console.error(`User ${setting.user_id}: JSON parse error:`, parseErr?.message)
             }
           }
           break
@@ -129,16 +140,11 @@ Return ONLY valid JSON:
         if (response.stop_reason === 'tool_use') {
           agentMessages.push({ role: 'assistant', content: response.content })
           const toolUseBlocks = response.content.filter((b: any) => b.type === 'tool_use')
-          const toolResults = toolUseBlocks.map((b: any) => {
-            const matchingResult = response.content.find(
-              (r: any) => (r.type === 'web_search_result' || r.type === 'tool_result') && r.tool_use_id === b.id
-            )
-            return {
-              type: 'tool_result',
-              tool_use_id: b.id,
-              content: matchingResult ? [matchingResult] : 'Search executed.',
-            }
-          })
+          const toolResults = toolUseBlocks.map((b: any) => ({
+            type: 'tool_result',
+            tool_use_id: b.id,
+            content: 'Search executed.',
+          }))
           agentMessages.push({ role: 'user', content: toolResults })
           continue
         }
@@ -150,7 +156,10 @@ Return ONLY valid JSON:
       continue
     }
 
-    if (quotesToSend.length === 0) continue
+    if (quotesToSend.length === 0) {
+      console.error(`User ${setting.user_id}: no quotes after agentic loop, skipping`)
+      continue
+    }
 
     const needsMoreNote = quotesToSend.length < quoteCount
     const emailHtml = `
