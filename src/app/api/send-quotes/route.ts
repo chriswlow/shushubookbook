@@ -27,7 +27,10 @@ export async function GET(req: Request) {
   for (const setting of settings) {
     if (setting.paused) continue
     if (!setting.prepared_email_html) continue
-    if (!setting.delivery_email) continue
+
+    const { data: authUser } = await supabase.auth.admin.getUserById(setting.user_id)
+    const deliveryEmail = setting.delivery_email || authUser?.user?.email
+    if (!deliveryEmail) continue
 
     const isZh = (setting.language || 'en') === 'zh'
     const emailSubject = isZh ? '📖 你今天的書摘來了' : '📖 Your ShuDrop for today'
@@ -35,7 +38,7 @@ export async function GET(req: Request) {
     try {
       await transporter.sendMail({
         from: `ShuDrop <${process.env.BREVO_SENDER}>`,
-        to: setting.delivery_email,
+        to: deliveryEmail,
         subject: emailSubject,
         html: setting.prepared_email_html,
       })

@@ -43,7 +43,10 @@ export async function GET(req: Request) {
       .eq('user_id', setting.user_id)
 
     if (!books || books.length === 0) continue
-    if (!setting.delivery_email) continue
+
+    const { data: authUser } = await supabase.auth.admin.getUserById(setting.user_id)
+    const deliveryEmail = setting.delivery_email || authUser?.user?.email
+    if (!deliveryEmail) continue
 
     const lang = setting.language || 'en'
     const isZh = lang === 'zh'
