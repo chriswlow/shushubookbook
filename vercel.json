@@ -4,7 +4,7 @@
   "outputDirectory": ".next",
   "functions": {
     "src/app/api/prepare-quotes/route.ts": {
-      "maxDuration": 300
+      "maxDuration": 60
     }
   },
   "crons": [
