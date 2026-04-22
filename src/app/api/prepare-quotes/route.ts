@@ -116,7 +116,8 @@ Return ONLY valid JSON:
 
         console.log(`User ${setting.user_id} turn ${turn}: stop_reason=${response.stop_reason} content_types=${response.content.map((b: any) => b.type).join(',')}`)
 
-        const textBlock = response.content.find((b: any) => b.type === 'text')
+        const textBlocks = response.content.filter((b: any) => b.type === 'text')
+        const textBlock = textBlocks[textBlocks.length - 1]
 
         if (response.stop_reason === 'end_turn' || textBlock) {
           if (textBlock && textBlock.type === 'text') {
