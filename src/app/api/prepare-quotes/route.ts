@@ -58,10 +58,15 @@ export async function GET(req: Request) {
     // Shuffle books so different ones get web-searched each day
     const shuffled = [...books].sort(() => Math.random() - 0.5)
     const highlightedBookIds = new Set((quotes || []).map((q: any) => q.book_id))
-    const usableHighlights = highlightedBookIds.size // max 1 per book due to diversity rule
-    const remainingSlots = Math.max(0, quoteCount - usableHighlights)
-    const searchCount = Math.min(remainingSlots, shuffled.length, 2)
-    const booksToSearch = shuffled.filter((b: any) => !highlightedBookIds.has(b.id)).slice(0, searchCount)
+    const nonHighlightedBooks = shuffled.filter((b: any) => !highlightedBookIds.has(b.id))
+
+    // Always reserve 1 slot for a non-highlighted book to ensure variety
+    const guaranteedSearches = Math.min(1, nonHighlightedBooks.length)
+    const personalSlots = quoteCount - guaranteedSearches
+    const usableHighlights = Math.min(highlightedBookIds.size, personalSlots)
+    const remainingSlots = quoteCount - usableHighlights
+    const searchCount = Math.min(remainingSlots, nonHighlightedBooks.length, 2)
+    const booksToSearch = nonHighlightedBooks.slice(0, searchCount)
     const bookListText = booksToSearch.map(b => `${b.title}${b.author ? ` by ${b.author}` : ''}`).join(', ')
 
     const userQuotesText = quotes && quotes.length > 0
