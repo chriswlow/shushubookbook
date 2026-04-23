@@ -57,7 +57,10 @@ export async function GET(req: Request) {
 
     // Shuffle books so different ones get web-searched each day
     const shuffled = [...books].sort(() => Math.random() - 0.5)
-    const booksToSearch = shuffled.slice(0, 2)
+    const personalCount = quotes ? quotes.length : 0
+    const remainingSlots = Math.max(0, quoteCount - personalCount)
+    const searchCount = Math.min(remainingSlots, shuffled.length, 2)
+    const booksToSearch = shuffled.slice(0, searchCount)
     const bookListText = booksToSearch.map(b => `${b.title}${b.author ? ` by ${b.author}` : ''}`).join(', ')
 
     const userQuotesText = quotes && quotes.length > 0
