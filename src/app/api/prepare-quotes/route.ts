@@ -70,7 +70,7 @@ export async function GET(req: Request) {
     const bookListText = booksToSearch.map(b => `${b.title}${b.author ? ` by ${b.author}` : ''}`).join(', ')
 
     const userQuotesText = quotes && quotes.length > 0
-      ? `User's personal highlights:\n${quotes.map(q => `- "${q.text}" (from: ${q.books?.title})`).join('\n')}`
+      ? `User's personal highlights:\n${quotes.map(q => `- "${q.text}" (from: ${q.books?.title}${q.books?.author ? ` by ${q.books?.author}` : ''})`).join('\n')}`
       : ''
 
     const recentTexts: string[] = setting.recent_quote_texts || []
