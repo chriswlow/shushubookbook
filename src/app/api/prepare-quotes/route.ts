@@ -71,7 +71,7 @@ export async function GET(req: Request) {
       quotesByBook.get(q.book_id)!.push(q)
     }
     const candidatePersonalQuotes: any[] = []
-    for (const bookQuotes of quotesByBook.values()) {
+    for (const bookQuotes of Array.from(quotesByBook.values())) {
       const pick = bookQuotes[Math.floor(Math.random() * bookQuotes.length)]
       candidatePersonalQuotes.push(pick)
     }
