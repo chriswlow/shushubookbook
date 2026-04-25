@@ -60,47 +60,66 @@ export async function GET(req: Request) {
     const highlightedBookIds = new Set((quotes || []).map((q: any) => q.book_id))
     const nonHighlightedBooks = shuffled.filter((b: any) => !highlightedBookIds.has(b.id))
 
-    // Always reserve 1 slot for a non-highlighted book to ensure variety
+    // recent_quote_texts tracks only AI quotes — personal quotes are never stored there
+    const recentTexts: string[] = setting.recent_quote_texts || []
+    const recentSet = new Set<string>(recentTexts)
+
+    // Pre-select personal quotes: exactly 1 per book, randomly rotated each drop
+    const quotesByBook = new Map<string, any[]>()
+    for (const q of (quotes || [])) {
+      if (!quotesByBook.has(q.book_id)) quotesByBook.set(q.book_id, [])
+      quotesByBook.get(q.book_id)!.push(q)
+    }
+    const candidatePersonalQuotes: any[] = []
+    for (const bookQuotes of quotesByBook.values()) {
+      const pick = bookQuotes[Math.floor(Math.random() * bookQuotes.length)]
+      candidatePersonalQuotes.push(pick)
+    }
+    candidatePersonalQuotes.sort(() => Math.random() - 0.5)
+
+    // Slot allocation: reserve at least 1 slot for a non-highlighted book if available
     const guaranteedSearches = Math.min(1, nonHighlightedBooks.length)
     const personalSlots = quoteCount - guaranteedSearches
-    const usableHighlights = Math.min(highlightedBookIds.size, personalSlots)
-    const remainingSlots = quoteCount - usableHighlights
+    const personalQuotesToInclude = candidatePersonalQuotes.slice(0, personalSlots)
+    const remainingSlots = quoteCount - personalQuotesToInclude.length
     const searchCount = Math.min(remainingSlots, nonHighlightedBooks.length, 2)
     const booksToSearch = nonHighlightedBooks.slice(0, searchCount)
-    const bookListText = booksToSearch.map(b => `${b.title}${b.author ? ` by ${b.author}` : ''}`).join(', ')
 
-    const userQuotesText = quotes && quotes.length > 0
-      ? `User's personal highlights:\n${quotes.map(q => `- "${q.text}" (from: ${q.books?.title}${q.books?.author ? ` by ${q.books?.author}` : ''})`).join('\n')}`
+    const allBooksText = books.map((b: any) => `${b.title}${b.author ? ` by ${b.author}` : ''}`).join(', ')
+    const searchBooksText = booksToSearch.map((b: any) => `${b.title}${b.author ? ` by ${b.author}` : ''}`).join(', ')
+
+    const userQuotesText = personalQuotesToInclude.length > 0
+      ? isZh
+        ? `用戶的個人畫線（請全部收錄，逐字引用）：\n${personalQuotesToInclude.map((q: any) => `- "${q.text}" (出自：${(q.books as any)?.title}${(q.books as any)?.author ? `，作者：${(q.books as any)?.author}` : ''})`).join('\n')}`
+        : `User's personal highlights (include all of these verbatim):\n${personalQuotesToInclude.map((q: any) => `- "${q.text}" (from: ${(q.books as any)?.title}${(q.books as any)?.author ? ` by ${(q.books as any)?.author}` : ''})`).join('\n')}`
       : ''
 
-    const recentTexts: string[] = setting.recent_quote_texts || []
     const avoidSection = recentTexts.length > 0
       ? isZh
-        ? `\n以下是最近已寄出的書摘，請盡量選擇不同的段落：\n${recentTexts.slice(0, 10).map(t => `- "${t.substring(0, 80)}"`).join('\n')}`
-        : `\nThese quotes were recently sent — prefer different passages where possible:\n${recentTexts.slice(0, 10).map(t => `- "${t.substring(0, 80)}"`).join('\n')}`
+        ? `\n以下書摘近期已寄出，請勿重複：\n${recentTexts.slice(0, 10).map(t => `- "${t.substring(0, 80)}"`).join('\n')}`
+        : `\nThese quotes were recently sent — do NOT reuse them:\n${recentTexts.slice(0, 10).map(t => `- "${t.substring(0, 80)}"`).join('\n')}`
       : ''
 
     const basePrompt = isZh
-      ? `你是一個書摘策展人。用戶讀過這些書：${bookListText}。
+      ? `你是一個書摘策展人。用戶已讀過的書：${allBooksText}。
 ${userQuotesText}${avoidSection}
 
 任務一——書摘：最多選 ${quoteCount} 句書摘。
-步驟 1：優先列入用戶的所有個人畫線。
-步驟 2：你有 ${booksToSearch.length} 本書需要搜尋。每本書只能搜尋一次，不可重複。請搜尋「site:goodreads.com/quotes [書名]」，每本書只選最受讀者喜愛的 1 句。
-重要：若某本書有中文版（繁體或簡體），請直接引用中文版原文。只有在該書確實沒有中文版時，才可使用英文原文。
+步驟 1：收錄上方所有個人畫線，逐字引用，不可更改。
+${booksToSearch.length > 0 ? `步驟 2：你有 ${booksToSearch.length} 本書需要搜尋：${searchBooksText}。每本書只能搜尋一次，不可重複。請搜尋「site:goodreads.com/quotes [書名]」，每本書只選最受讀者喜愛的 1 句。重要：若某本書有中文版（繁體或簡體），請直接引用中文版原文。只有在該書確實沒有中文版時，才可使用英文原文。` : ''}
 多樣性原則：整封信中每本書最多只能出現 1 句（包含個人畫線與 AI 搜尋）。
 
 任務二——選書推薦：根據用戶的書單，推薦一本他們尚未讀過、但可能會喜歡的書，附上一句推薦理由。
 
 以 JSON 格式回傳：
 {"quotes": [{"text": "...", "book": "...", "author": "...", "source": "personal 或 ai"}], "recommendation": {"title": "...", "author": "...", "reason": "..."}}`
-      : `You are a thoughtful quote curator. The user has read these books: ${bookListText}.
+      : `You are a thoughtful quote curator. The user has read: ${allBooksText}.
 ${userQuotesText}${avoidSection}
 
 Task 1 — Quotes: Return up to ${quoteCount} quotes total.
-Step 1: Include ALL of the user's personal highlights listed above.
-Step 2: You have ${booksToSearch.length} book(s) to search. Do exactly ONE search per book — no more. For each book search "site:goodreads.com/quotes [book title]" and pick the single most loved quote. Never do two searches on the same book.
-Only include quotes found via search or certain to be verbatim from the book.
+Step 1: Include ALL personal highlights listed above — copy them verbatim, do not alter.
+${booksToSearch.length > 0 ? `Step 2: Search for quotes from these ${booksToSearch.length} book(s): ${searchBooksText}. Do exactly ONE search per book — no more. Search "site:goodreads.com/quotes [book title]" and pick the single most loved quote per book. Never do two searches on the same book.
+Only include quotes found via search or certain to be verbatim from the book.` : ''}
 Diversity rule: Maximum 1 quote per book across the entire email — personal highlights and AI quotes combined.
 
 Task 2 — Book recommendation: Based on the user's reading list, recommend ONE book they haven't read yet that they'd likely enjoy. Give a one-sentence reason.
@@ -174,6 +193,21 @@ Return ONLY valid JSON:
       continue
     }
 
+    // Hard-enforce: max 1 quote per book (catches any LLM slip-up)
+    const seenBooks = new Set<string>()
+    quotesToSend = quotesToSend.filter((q: any) => {
+      const bookKey = (q.book || '').toLowerCase().trim()
+      if (!bookKey) return true
+      if (seenBooks.has(bookKey)) return false
+      seenBooks.add(bookKey)
+      return true
+    })
+
+    // Hard-enforce: remove AI quotes that were recently sent
+    quotesToSend = quotesToSend.filter((q: any) =>
+      q.source === 'personal' || !recentSet.has(q.text)
+    )
+
     const needsMoreNote = quotesToSend.length < quoteCount
     const emailHtml = `
 <!DOCTYPE html>
@@ -216,8 +250,8 @@ Return ONLY valid JSON:
     ${needsMoreNote ? `
     <div class="more-note">
       ${isZh
-        ? `想要更多書摘？<a href="https://shushubookbook.vercel.app/dashboard">加入更多個人畫線</a>，讓每次的書摘更豐富。`
-        : `Want more quotes? <a href="https://shushubookbook.vercel.app/dashboard">Add highlights from your books</a> to fill your drop.`}
+        ? `這次書摘較少——搜尋已達上限以控制費用。<a href="https://shushubookbook.vercel.app/dashboard">加入更多個人畫線</a>以豐富每次書摘。`
+        : `Fewer quotes this drop — we stopped searching early to keep costs down. <a href="https://shushubookbook.vercel.app/dashboard">Add more personal highlights</a> to fill future drops.`}
     </div>` : ''}
 
     ${recommendation ? `
@@ -237,7 +271,8 @@ Return ONLY valid JSON:
 
     const { error: saveError } = await supabase.from('user_settings').update({
       prepared_email_html: emailHtml,
-      prepared_quote_texts: quotesToSend.map((q: any) => q.text),
+      // Only track AI quotes in recent_quote_texts — personal quotes rotate independently
+      prepared_quote_texts: quotesToSend.filter((q: any) => q.source !== 'personal').map((q: any) => q.text),
     }).eq('user_id', setting.user_id)
 
     if (saveError) {
