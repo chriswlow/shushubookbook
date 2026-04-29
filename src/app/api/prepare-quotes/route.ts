@@ -87,8 +87,15 @@ export async function GET(req: Request) {
     const personalSlots = quoteCount - guaranteedSearches
     const personalQuotesToInclude = candidatePersonalQuotes.slice(0, personalSlots)
     const remainingSlots = quoteCount - personalQuotesToInclude.length
-    const searchCount = Math.min(remainingSlots, nonHighlightedBooks.length, 2)
-    const booksToSearch = nonHighlightedBooks.slice(0, searchCount)
+
+    // Highlighted books that didn't get a personal quote slot this drop are also search candidates
+    const pickedBookIds = new Set(personalQuotesToInclude.map((q: any) => q.book_id))
+    const leftOutHighlightedBooks = (books || []).filter((b: any) =>
+      highlightedBookIds.has(b.id) && !pickedBookIds.has(b.id)
+    )
+    const searchPool = [...nonHighlightedBooks, ...leftOutHighlightedBooks].sort(() => Math.random() - 0.5)
+    const searchCount = Math.min(remainingSlots, searchPool.length, 2)
+    const booksToSearch = searchPool.slice(0, searchCount)
 
     const allBooksText = books.map((b: any) => `${b.title}${b.author ? ` by ${b.author}` : ''}`).join(', ')
     const searchBooksText = booksToSearch.map((b: any) => `${b.title}${b.author ? ` by ${b.author}` : ''}`).join(', ')
