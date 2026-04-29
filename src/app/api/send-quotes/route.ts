@@ -49,11 +49,16 @@ export async function GET(req: Request) {
       const newTexts: string[] = setting.prepared_quote_texts || []
       const updatedTexts = [...newTexts, ...(setting.recent_quote_texts || [])].slice(0, 20)
 
+      const newPersonalTexts: string[] = setting.prepared_personal_quote_texts || []
+      const updatedPersonalTexts = [...newPersonalTexts, ...(setting.recent_personal_quote_texts || [])].slice(0, 20)
+
       const { error: updateError } = await supabase.from('user_settings').update({
         last_sent_at: new Date().toISOString(),
         recent_quote_texts: updatedTexts,
+        recent_personal_quote_texts: updatedPersonalTexts,
         prepared_email_html: null,
         prepared_quote_texts: null,
+        prepared_personal_quote_texts: null,
       }).eq('user_id', setting.user_id)
 
       if (updateError) console.error('Failed to update settings after send:', updateError.message)

@@ -54,3 +54,5 @@ alter table user_settings add column if not exists delivery_hour integer default
 alter table user_settings add column if not exists recent_quote_texts text[] default '{}';
 alter table user_settings add column if not exists prepared_email_html text;
 alter table user_settings add column if not exists prepared_quote_texts text[] default '{}';
+alter table user_settings add column if not exists recent_personal_quote_texts text[] default '{}';
+alter table user_settings add column if not exists prepared_personal_quote_texts text[] default '{}';

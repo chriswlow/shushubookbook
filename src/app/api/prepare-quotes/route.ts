@@ -60,11 +60,13 @@ export async function GET(req: Request) {
     const highlightedBookIds = new Set((quotes || []).map((q: any) => q.book_id))
     const nonHighlightedBooks = shuffled.filter((b: any) => !highlightedBookIds.has(b.id))
 
-    // recent_quote_texts tracks only AI quotes — personal quotes are never stored there
+    // recent_quote_texts tracks AI quotes; recent_personal_quote_texts tracks personal quotes
     const recentTexts: string[] = setting.recent_quote_texts || []
     const recentSet = new Set<string>(recentTexts)
+    const recentPersonalTexts: string[] = setting.recent_personal_quote_texts || []
+    const recentPersonalSet = new Set<string>(recentPersonalTexts)
 
-    // Pre-select personal quotes: exactly 1 per book, randomly rotated each drop
+    // Pre-select personal quotes: exactly 1 per book, skipping recently-sent ones
     const quotesByBook = new Map<string, any[]>()
     for (const q of (quotes || [])) {
       if (!quotesByBook.has(q.book_id)) quotesByBook.set(q.book_id, [])
@@ -72,7 +74,10 @@ export async function GET(req: Request) {
     }
     const candidatePersonalQuotes: any[] = []
     for (const bookQuotes of Array.from(quotesByBook.values())) {
-      const pick = bookQuotes[Math.floor(Math.random() * bookQuotes.length)]
+      // Prefer quotes not recently sent; fall back to any quote if all were recent
+      const fresh = bookQuotes.filter(q => !recentPersonalSet.has(q.text))
+      const pool = fresh.length > 0 ? fresh : bookQuotes
+      const pick = pool[Math.floor(Math.random() * pool.length)]
       candidatePersonalQuotes.push(pick)
     }
     candidatePersonalQuotes.sort(() => Math.random() - 0.5)
@@ -271,8 +276,8 @@ Return ONLY valid JSON:
 
     const { error: saveError } = await supabase.from('user_settings').update({
       prepared_email_html: emailHtml,
-      // Only track AI quotes in recent_quote_texts — personal quotes rotate independently
       prepared_quote_texts: quotesToSend.filter((q: any) => q.source !== 'personal').map((q: any) => q.text),
+      prepared_personal_quote_texts: quotesToSend.filter((q: any) => q.source === 'personal').map((q: any) => q.text),
     }).eq('user_id', setting.user_id)
 
     if (saveError) {
