@@ -47,10 +47,10 @@ export async function GET(req: Request) {
       })
 
       const newTexts: string[] = setting.prepared_quote_texts || []
-      const updatedTexts = [...newTexts, ...(setting.recent_quote_texts || [])].slice(0, 20)
+      const updatedTexts = [...newTexts, ...(setting.recent_quote_texts || [])].slice(0, 60)
 
       const newPersonalTexts: string[] = setting.prepared_personal_quote_texts || []
-      const updatedPersonalTexts = [...newPersonalTexts, ...(setting.recent_personal_quote_texts || [])].slice(0, 20)
+      const updatedPersonalTexts = [...newPersonalTexts, ...(setting.recent_personal_quote_texts || [])].slice(0, 60)
 
       const { error: updateError } = await supabase.from('user_settings').update({
         last_sent_at: new Date().toISOString(),
