@@ -72,21 +72,24 @@ export async function GET(req: Request) {
       quotesByBook.get(q.book_id)!.push(q)
     }
     const candidatePersonalQuotes: any[] = []
+    const staleFallbackQuotes: any[] = []
     for (const bookQuotes of Array.from(quotesByBook.values())) {
-      // Prefer quotes not recently sent. If every quote for this book was
-      // recently sent, pick the one sent longest ago so we never repeat a
-      // quote two drops in a row. (recentPersonalTexts is newest-first, so a
-      // larger index means it was sent longer ago / not at all.)
+      // Prefer highlights not recently sent.
       const fresh = bookQuotes.filter(q => !recentPersonalSet.has(q.text))
-      let pick
       if (fresh.length > 0) {
-        pick = fresh[Math.floor(Math.random() * fresh.length)]
+        candidatePersonalQuotes.push(fresh[Math.floor(Math.random() * fresh.length)])
       } else {
-        pick = bookQuotes.reduce((best, q) =>
-          recentPersonalTexts.indexOf(q.text) > recentPersonalTexts.indexOf(best.text) ? q : best
+        // Every highlight from this book was sent recently. Don't repeat a
+        // stale one — leave this book out of personal selection so it flows
+        // into the web-search pool below and the AI can pull a *fresh* quote
+        // from it. Keep the least-recently-sent highlight as a last-resort
+        // fallback, used only if search can't fill the drop.
+        staleFallbackQuotes.push(
+          bookQuotes.reduce((best, q) =>
+            recentPersonalTexts.indexOf(q.text) > recentPersonalTexts.indexOf(best.text) ? q : best
+          )
         )
       }
-      candidatePersonalQuotes.push(pick)
     }
     candidatePersonalQuotes.sort(() => Math.random() - 0.5)
 
@@ -228,11 +231,22 @@ Return ONLY valid JSON:
       .filter((q: any) => q.source === 'ai')
       .filter((q: any) => !recentNormSet.has(normalize(q.text)))
 
-    // Combine personal first (they always win a slot), enforce max 1 quote per
-    // book, and cap at the user's quote count.
+    // Last-resort fallback: stale highlights from books whose quotes were all
+    // recently sent. Only used to top up if fresh personal + AI search didn't
+    // fill the drop (e.g. web search found nothing). Prefer a real repeat over
+    // an under-filled or empty email.
+    const staleFinal = staleFallbackQuotes.map((q: any) => ({
+      text: q.text,
+      book: (q.books as any)?.title || '',
+      author: (q.books as any)?.author || '',
+      source: 'personal',
+    }))
+
+    // Combine: fresh personal first (always win a slot), then AI search quotes,
+    // then stale fallbacks. Enforce max 1 quote per book, cap at quote count.
     const seenBooks = new Set<string>()
     quotesToSend = []
-    for (const q of [...personalFinal, ...aiQuotes]) {
+    for (const q of [...personalFinal, ...aiQuotes, ...staleFinal]) {
       const bookKey = (q.book || '').toLowerCase().trim()
       if (bookKey && seenBooks.has(bookKey)) continue
       if (bookKey) seenBooks.add(bookKey)
