@@ -62,7 +62,6 @@ export async function GET(req: Request) {
 
     // recent_quote_texts tracks AI quotes; recent_personal_quote_texts tracks personal quotes
     const recentTexts: string[] = setting.recent_quote_texts || []
-    const recentSet = new Set<string>(recentTexts)
     const recentPersonalTexts: string[] = setting.recent_personal_quote_texts || []
     const recentPersonalSet = new Set<string>(recentPersonalTexts)
 
@@ -74,10 +73,19 @@ export async function GET(req: Request) {
     }
     const candidatePersonalQuotes: any[] = []
     for (const bookQuotes of Array.from(quotesByBook.values())) {
-      // Prefer quotes not recently sent; fall back to any quote if all were recent
+      // Prefer quotes not recently sent. If every quote for this book was
+      // recently sent, pick the one sent longest ago so we never repeat a
+      // quote two drops in a row. (recentPersonalTexts is newest-first, so a
+      // larger index means it was sent longer ago / not at all.)
       const fresh = bookQuotes.filter(q => !recentPersonalSet.has(q.text))
-      const pool = fresh.length > 0 ? fresh : bookQuotes
-      const pick = pool[Math.floor(Math.random() * pool.length)]
+      let pick
+      if (fresh.length > 0) {
+        pick = fresh[Math.floor(Math.random() * fresh.length)]
+      } else {
+        pick = bookQuotes.reduce((best, q) =>
+          recentPersonalTexts.indexOf(q.text) > recentPersonalTexts.indexOf(best.text) ? q : best
+        )
+      }
       candidatePersonalQuotes.push(pick)
     }
     candidatePersonalQuotes.sort(() => Math.random() - 0.5)
@@ -196,29 +204,46 @@ Return ONLY valid JSON:
         break
       }
     } catch (err: any) {
+      // A failed/flaky AI call must NOT drop the user's whole drop — we still
+      // have their deterministically-selected personal highlights to send.
       console.error('Claude error for user', setting.user_id, ':', err?.message || err)
-      continue
+    }
+
+    // Build the guaranteed personal quotes directly from our deterministic
+    // selection — never rely on the LLM to echo them back. This way a flaky or
+    // failed AI call can't drop a user's whole drop when they have highlights.
+    const personalFinal = personalQuotesToInclude.map((q: any) => ({
+      text: q.text,
+      book: (q.books as any)?.title || '',
+      author: (q.books as any)?.author || '',
+      source: 'personal',
+    }))
+
+    // Normalise text so near-identical repeats (smart quotes / whitespace /
+    // casing drift from web search) are still caught by the recent-quote filter.
+    const normalize = (t: string) =>
+      (t || '').toLowerCase().replace(/[“”„‟"'‘’`]/g, '').replace(/\s+/g, ' ').trim()
+    const recentNormSet = new Set(recentTexts.map(normalize))
+    const aiQuotes = quotesToSend
+      .filter((q: any) => q.source === 'ai')
+      .filter((q: any) => !recentNormSet.has(normalize(q.text)))
+
+    // Combine personal first (they always win a slot), enforce max 1 quote per
+    // book, and cap at the user's quote count.
+    const seenBooks = new Set<string>()
+    quotesToSend = []
+    for (const q of [...personalFinal, ...aiQuotes]) {
+      const bookKey = (q.book || '').toLowerCase().trim()
+      if (bookKey && seenBooks.has(bookKey)) continue
+      if (bookKey) seenBooks.add(bookKey)
+      quotesToSend.push(q)
+      if (quotesToSend.length >= quoteCount) break
     }
 
     if (quotesToSend.length === 0) {
-      console.error(`User ${setting.user_id}: no quotes after agentic loop, skipping`)
+      console.error(`User ${setting.user_id}: no quotes to send, skipping`)
       continue
     }
-
-    // Hard-enforce: max 1 quote per book (catches any LLM slip-up)
-    const seenBooks = new Set<string>()
-    quotesToSend = quotesToSend.filter((q: any) => {
-      const bookKey = (q.book || '').toLowerCase().trim()
-      if (!bookKey) return true
-      if (seenBooks.has(bookKey)) return false
-      seenBooks.add(bookKey)
-      return true
-    })
-
-    // Hard-enforce: remove AI quotes that were recently sent
-    quotesToSend = quotesToSend.filter((q: any) =>
-      q.source === 'personal' || !recentSet.has(q.text)
-    )
 
     const needsMoreNote = quotesToSend.length < quoteCount
     const emailHtml = `
